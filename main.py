@@ -1,9 +1,7 @@
 import os
 import logging
 import sqlite3
-import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.error import TelegramError
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 logging.basicConfig(
@@ -156,7 +154,7 @@ FEATURES_LIST = {
     "lock_phone": "قفل أرقام الهواتف", "lock_visa": "قفل البطاقات", "lock_currency": "قفل العملات",
     "lock_spam": "قفل التكرار (Spam)", "lock_flood": "قفل التثاقل", "lock_caps": "قفل الحروف الكبيرة",
     "lock_emoji": "قفل الإيموجي المفرط", "lock_fwd_channel": "قفل توجيه القنوات", "lock_fwd_user": "قفل توجيه الأشخاص",
-    "lock_pinned": "qفل التثبيت", "lock_name_change": "قفل تغيير اسم المجموعة", "lock_photo_change": "قفل صورة المجموعة",
+    "lock_pinned": "قفل التثبيت", "lock_name_change": "قفل تغيير اسم المجموعة", "lock_photo_change": "قفل صورة المجموعة",
     "lock_audio_chat": "قفل المكالمات الصوتية", "lock_channels_msg": "قفل رسايل الكروبات", "lock_badwords": "قفل الكلمات البذيئة",
     "lock_links_tg": "قفل روابط تليجرام", "lock_html": "قفل أكواد HTML", "lock_quotes": "قفل الاقتباسات",
     "lock_audio_record": "قفل تسجيل الصوت", "lock_video_note": "قفل رسائل الفيديو", "lock_inline_bot": "قفل البوتات الخارجية",
@@ -186,42 +184,28 @@ def toggle_feature_state(chat_id, feature_key):
     set_feature_state(chat_id, feature_key, new_state)
     return new_state
 
-# --- لوحات الأزرار الشفافة الرئيسية للكروبات ---
-def get_main_group_menu():
+# --- لوحات الأزرار الشفافة المطابقة للصورة تماماً ---
+def get_main_commands_menu():
     keyboard = [
         [
-            InlineKeyboardButton("• 1 .", callback_data="menu_lock_page1")
+            InlineKeyboardButton("• 1 .", callback_data="menu_page1"),
+            InlineKeyboardButton("• 2 .", callback_data="menu_page2")
         ],
         [
-            InlineKeyboardButton("• 3 .", callback_data="menu_page3"),
-            InlineKeyboardButton("• 4 .", callback_data="menu_page4")
+            InlineKeyboardButton("• 3 .", callback_data="menu_page3")
         ],
         [
-            InlineKeyboardButton("• 5 .", callback_data="menu_page5"),
+            InlineKeyboardButton("• 4 .", callback_data="menu_page4"),
+            InlineKeyboardButton("• 5 .", callback_data="menu_page5")
+        ],
+        [
             InlineKeyboardButton("• 6 .", callback_data="menu_page6")
-        ],
-        [
-            InlineKeyboardButton("• القائمه الرئيسيه .", callback_data="back_to_main_full")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_full_main_menu():
-    keyboard = [
-        [
-            InlineKeyboardButton("⚙️ قائمة التفعيل والتعطيل", callback_data="menu_activation_list"),
-            InlineKeyboardButton("🛡️ أوامر المشرفين", callback_data="menu_admins_cmds")
-        ],
-        [
-            InlineKeyboardButton("👑 رتب وأوامر المطورين", callback_data="menu_dev_cmds"),
-            InlineKeyboardButton("🔥 الأقسام الترفيهية", callback_data="menu_fun_section")
-        ],
-        [
-            InlineKeyboardButton("💎 قسم سورس Tp", callback_data="menu_source_info"),
-            InlineKeyboardButton("❌ إغلاق القائمة", callback_data="cmd_close")
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+def get_sub_back_keyboard():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main_cmds")]])
 
 def get_activation_menu(page=1):
     keys = list(FEATURES_LIST.keys())
@@ -248,7 +232,7 @@ def get_activation_menu(page=1):
     if nav_row:
         keyboard.append(nav_row)
         
-    keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="menu_lock_page1")])
+    keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main_cmds")])
     return InlineKeyboardMarkup(keyboard)
 
 def get_admins_menu_keyboard():
@@ -256,7 +240,7 @@ def get_admins_menu_keyboard():
         [InlineKeyboardButton("🔇 كتم / فك الكتم", callback_data="adm_mute"), InlineKeyboardButton("🚫 طرد / حظر", callback_data="adm_ban")],
         [InlineKeyboardButton("📌 تثبيت رسالة", callback_data="adm_pin"), InlineKeyboardButton("🗑️ مسح الرسائل", callback_data="adm_clean")],
         [InlineKeyboardButton("⚠️ تحذير عضـو", callback_data="adm_warn"), InlineKeyboardButton("👤 رفع ادمن", callback_data="adm_promote")],
-        [InlineKeyboardButton("🔙 رجوع", callback_data="menu_lock_page1")]
+        [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main_cmds")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -268,7 +252,7 @@ def get_dev_menu_keyboard():
         [InlineKeyboardButton("🏛️ رفع مالك أساسي", callback_data="dev_add_owner_basic"), InlineKeyboardButton("💻 رفع مطور", callback_data="dev_add_dev")],
         [InlineKeyboardButton("⚡ رفع مطور ثانوي", callback_data="dev_add_secondary"), InlineKeyboardButton("👑 رفع مطور أساسي", callback_data="dev_add_primary")],
         [InlineKeyboardButton("❌ تنزيل رتبة / حذف", callback_data="dev_demote_all"), InlineKeyboardButton("📢 إذاعة عامة", callback_data="dev_broadcast")],
-        [InlineKeyboardButton("🔙 رجوع", callback_data="menu_lock_page1")]
+        [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main_cmds")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -277,7 +261,7 @@ def get_fun_menu_keyboard():
         [InlineKeyboardButton("❤️ نسبة الحب", callback_data="fun_love"), InlineKeyboardButton("😏 نسبة الانحراف", callback_data="fun_crazy")],
         [InlineKeyboardButton("🃏 لو خيروك", callback_data="fun_choices"), InlineKeyboardButton("🎭 نكت مضحكة", callback_data="fun_jokes")],
         [InlineKeyboardButton("🔮 البصارة والحظ", callback_data="fun_fortune"), InlineKeyboardButton("🔪 مافيا وروليت", callback_data="fun_games")],
-        [InlineKeyboardButton("🔙 رجوع", callback_data="menu_lock_page1")]
+        [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main_cmds")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -318,7 +302,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text_clean = text.strip()
     role_title = get_user_role(user.id, user.username)
 
-    # 1. الشات الخاص (عند إرسال /start)
+    # 1. الشات الخاص
     if chat.type == "private":
         save_user(user.id, user.username, user.full_name)
         
@@ -362,13 +346,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "تفعيل":
             activate_group(chat.id, chat.title)
-            await message.reply_text("✅ **تم تفعيل سورس Tp والحماية الشاملة في هذه المجموعة بنجاح!**\nاكتب `الاوامر` لإظهار الأزرار الشفافة.")
+            await message.reply_text("✅ **تم تفعيل سورس Tp والحماية الشاملة في هذه المجموعة بنجاح!**\nاكتب `الاوامر` لإظهار القائمة الرئيسية.")
             return
 
-        # --- تشغيل أوامر القفل والفتح المباشرة في الكروب (مثل: قفل التاك، فتح الصور...) ---
+        # --- تشغيل أوامر القفل والفتح المباشرة في الكروب ---
         if text_clean.startswith("قفل ") or text_clean.startswith("فتح "):
             parts = text_clean.split(" ", 1)
-            action = parts[0]  # قفل أو فتح
+            action = parts[0]
             target_name = parts[1].strip()
 
             if target_name in LOCK_COMMANDS_MAP:
@@ -385,26 +369,16 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = reply.from_user if reply else user
 
         if text_clean in ["الاوامر", "الأوامر", "اوامر"]:
-            locks_text = (
-                "اوامر ( القفل والفتح )\n"
-                "- تستطيع القفل كالاتي :\n\n"
-                "• التاك • القنوات\n"
-                "• الصور • الروابط\n"
-                "• الفشار • التكرار\n"
-                "• الفيديو • الدخول\n"
-                "• الاضافه • الاغاني\n"
-                "• الصوت • الملفات\n"
-                "• التفليش • الدردشه\n"
-                "• الجهات • السيلفي\n"
-                "• التثبيت • الشارحه\n"
-                "• الكلايش • البوتات\n"
-                "• التوجيه • التعديل\n"
-                "• المعرفات • الكيبورد\n"
-                "• الفاريه • الانجليزيه\n"
-                "• الملصقات • الاشعارات\n"
-                "• الماركداون • المتحركه"
+            commands_main_text = (
+                "• اليك اوامر البوت 5.1 .\n\n"
+                "• ( م 1 ) ↬ اوامر الحمايه\n"
+                "• ( م 2 ) ↬ اوامر المشرفين\n"
+                "• ( م 3 ) ↬ اوامر التفعيلات\n"
+                "• ( م 4 ) ↬ اوامر المسح\n"
+                "• ( م 5 ) ↬ اوامر المطورين\n"
+                "• ( م 6 ) ↬ اوامر الترفيه"
             )
-            await message.reply_text(locks_text, reply_markup=get_main_group_menu())
+            await message.reply_text(commands_main_text, reply_markup=get_main_commands_menu())
             return
 
         if text_clean in ["سورس", "السورس", "سورس tp"]:
@@ -412,7 +386,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "╔═════════════════╗\n"
                 "  ✨ **سورس Tp للتطوير والحماية** ✨\n"
                 "╚═════════════════╝\n\n"
-                "• **الإصدار:** v5.1 (نظام أزرار المصنع المطابقة)\n"
+                "• **الإصدار:** v5.1\n"
                 "• **المطور الأساسي:** @odox3\n"
                 "• **قناة السورس:** @odox6",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✨ قناة السورس", url=f"https://t.me/{CHANNEL_USERNAME.replace('@','')}")],
@@ -488,7 +462,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     chat = query.message.chat
 
-    # الشات الخاص وأزرار المصنع
+    # الشات الخاص
     if chat.type == "private":
         if data == "make_free_bot":
             context.user_data["waiting_for_token"] = "free"
@@ -526,10 +500,22 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text=welcome_msg, reply_markup=get_private_start_keyboard())
             return
 
-    # الكروبات وأزرار الأوامر والقوائم الجديدة
-    if data == "menu_lock_page1":
+    # الكروبات وأزرار المنيو من 1 للـ 6
+    if data == "back_to_main_cmds":
+        commands_main_text = (
+            "• اليك اوامر البوت 5.1 .\n\n"
+            "• ( م 1 ) ↬ اوامر الحمايه\n"
+            "• ( م 2 ) ↬ اوامر المشرفين\n"
+            "• ( م 3 ) ↬ اوامر التفعيلات\n"
+            "• ( م 4 ) ↬ اوامر المسح\n"
+            "• ( م 5 ) ↬ اوامر المطورين\n"
+            "• ( م 6 ) ↬ اوامر الترفيه"
+        )
+        await query.edit_message_text(text=commands_main_text, reply_markup=get_main_commands_menu())
+        return
+    elif data == "menu_page1":
         locks_text = (
-            "اوامر ( القفل والفتح )\n"
+            "اوامر ( القفل والفتح ) ~ ( م 1 )\n"
             "- تستطيع القفل كالاتي :\n\n"
             "• التاك • القنوات\n"
             "• الصور • الروابط\n"
@@ -547,43 +533,22 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• الملصقات • الاشعارات\n"
             "• الماركداون • المتحركه"
         )
-        await query.edit_message_text(text=locks_text, reply_markup=get_main_group_menu())
+        await query.edit_message_text(text=locks_text, reply_markup=get_sub_back_keyboard())
+        return
+    elif data == "menu_page2":
+        await query.edit_message_text(text="🛡️ **( م 2 ) ↬ اوامر المشرفين والإدارة:**", reply_markup=get_admins_menu_keyboard())
         return
     elif data == "menu_page3":
-        await query.edit_message_text(text="🛡️ **قائمة أوامر المشرفين والإدارة (صفحة 3):**", reply_markup=get_admins_menu_keyboard())
+        await query.edit_message_text(text="⚙️ **( م 3 ) ↬ اوامر التفعيلات والتعطيل الكبرى:**", reply_markup=get_activation_menu(1))
         return
     elif data == "menu_page4":
-        await query.edit_message_text(text="👑 **قائمة رتب وأوامر المطورين (صفحة 4):**", reply_markup=get_dev_menu_keyboard())
+        await query.edit_message_text(text="🗑️ **( م 4 ) ↬ اوامر المسح والتنظيف في المجموعة:**", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page5":
-        await query.edit_message_text(text="🔥 **القسم الترفيهي والألعاب (صفحة 5):**", reply_markup=get_fun_menu_keyboard())
+        await query.edit_message_text(text="👑 **( م 5 ) ↬ اوامر المطورين الشاملة:**", reply_markup=get_dev_menu_keyboard())
         return
     elif data == "menu_page6":
-        await query.edit_message_text(text="⚙️ **قائمة التفعيل والتعطيل الكبرى (صفحة 6):**", reply_markup=get_activation_menu(1))
-        return
-    elif data == "back_to_main_full":
-        await query.edit_message_text(text="📜 **القائمة الرئيسية الكاملة لسورس Tp:**", reply_markup=get_full_main_menu())
-        return
-    elif data == "menu_activation_list":
-        await query.edit_message_text(text="⚙️ **قائمة التفعيل والتعطيل الكبرى (50+ ميزة):**", reply_markup=get_activation_menu(1))
-        return
-    elif data == "menu_admins_cmds":
-        await query.edit_message_text(text="🛡️ **قائمة أوامر المشرفين والإدارة:**", reply_markup=get_admins_menu_keyboard())
-        return
-    elif data == "menu_dev_cmds":
-        await query.edit_message_text(text="👑 **قائمة رتب وأوامر المطورين الشاملة:**", reply_markup=get_dev_menu_keyboard())
-        return
-    elif data == "menu_fun_section":
-        await query.edit_message_text(text="🔥 **القسم الترفيهي والألعاب:**", reply_markup=get_fun_menu_keyboard())
-        return
-    elif data == "menu_source_info":
-        await query.edit_message_text(
-            text="✨ **معلومات سورس Tp v5.1:**\nالمطور: @odox3",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="menu_lock_page1")]])
-        )
-        return
-    elif data == "cmd_close":
-        await query.message.delete()
+        await query.edit_message_text(text="🔥 **( م 6 ) ↬ اوامر الترفيه والألعاب:**", reply_markup=get_fun_menu_keyboard())
         return
 
     if data.startswith("dev_add_"):
@@ -592,7 +557,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data.startswith("page_"):
         page_num = int(data.split("_")[1])
-        await query.edit_message_text(text="⚙️ **قائمة التفعيل والتعطيل:**", reply_markup=get_activation_menu(page_num))
+        await query.edit_message_text(text="⚙️ **( م 3 ) ↬ اوامر التفعيلات:**", reply_markup=get_activation_menu(page_num))
         return
 
     if data.startswith("toggle_"):
@@ -614,7 +579,7 @@ def main():
     PORT = int(os.environ.get("PORT", "10000"))
     RENDER_URL = "https://bot-maker-1-709e.onrender.com"
 
-    logger.info("Tp Source v5.1 started with Direct Lock Commands Enabled...")
+    logger.info("Tp Source v5.1 started with exact 1-6 buttons layout...")
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
