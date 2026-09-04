@@ -1,4 +1,3 @@
-
 import os
 import logging
 import sqlite3
@@ -482,7 +481,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # =====================================================================
-        # --- أوامر القفل والفتح (م 1) - تتطلب مستوى مدير (3) فما فوق ---
+        # --- أوامر القفل والفتح الشاملة (قائمة الم 1 الكاملة) ---
         # =====================================================================
         locks_map = {
             "قفل الروابط": ("links", True), "فتح الروابط": ("links", False),
@@ -492,7 +491,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "قفل الفيديوهات": ("videos", True), "فتح الفيديوهات": ("videos", False),
             "قفل البوتات": ("bots", True), "فتح البوتات": ("bots", False),
             "قفل التوجيه": ("forward", True), "فتح التوجيه": ("forward", False),
-            "قفل الملصقات": ("stickers", True), "فتح الملصقات": ("stickers", False)
+            "قفل الملصقات": ("stickers", True), "فتح الملصقات": ("stickers", False),
+            "قفل المتحركة": ("gifs", True), "فتح المتحركة": ("gifs", False),
+            "قفل البوتات المتحركة": ("inline_bots", True), "فتح البوتات المتحركة": ("inline_bots", False),
+            "قفل التثبيت": ("pin", True), "فتح التثبيت": ("pin", False),
+            "قفل التغيير": ("group_info", True), "فتح التغيير": ("group_info", False),
+            "قفل الدردشة": ("chat", True), "فتح الدردشة": ("chat", False),
+            "قفل الكلايش": ("long_messages", True), "فتح الكلايش": ("long_messages", False),
+            "قفل التكرار السريع": ("fast_flood", True), "فتح التكرار السريع": ("fast_flood", False)
         }
         if text_clean in locks_map:
             if user_lvl < 3:
@@ -505,14 +511,20 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # =====================================================================
-        # --- أوامر التفعيلات والتعطيل (م 3) ---
+        # --- أوامر التفعيلات والتعطيل الشاملة (قائمة الم 3 الكاملة) ---
         # =====================================================================
         features_map = {
             "تفعيل الترحيب": ("welcome", True), "تعطيل الترحيب": ("welcome", False),
             "تفعيل الردود": ("replies", True), "تعطيل الردود": ("replies", False),
             "تفعيل الالعاب": ("games", True), "تعطيل الالعاب": ("games", False),
             "تفعيل التحذيرات": ("warnings", True), "تعطيل التحذيرات": ("warnings", False),
-            "تفعيل الاشعارات": ("notifications", True), "تعطيل الاشعارات": ("notifications", False)
+            "تفعيل الاشعارات": ("notifications", True), "تعطيل الاشعارات": ("notifications", False),
+            "تفعيل الايديات": ("show_id", True), "تعطيل الايديات": ("show_id", False),
+            "تفعيل الروابط التلقائية": ("auto_links", True), "تعطيل الروابط التلقائية": ("auto_links", False),
+            "تفعيل صانع البوتات": ("bot_factory", True), "تعطيل صانع البوتات": ("bot_factory", False),
+            "تفعيل الردود التلقائية": ("custom_replies", True), "تعطيل الردود التلقائية": ("custom_replies", False),
+            "تفعيل التنبيهات الذكية": ("smart_alerts", True), "تعطيل التنبيهات الذكية": ("smart_alerts", False),
+            "تفعيل التقييم التلقائي": ("auto_rate", True), "تعطيل التقييم التلقائي": ("auto_rate", False)
         }
         if text_clean in features_map:
             if user_lvl < 3:
@@ -527,7 +539,8 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text_clean in ["قائمة التفعيلات", "عرض التفعيلات"]:
             await message.reply_text(
                 f"⚙️ **قائمة التفعيلات والتعطيل الشاملة في الكروب:**\n\n"
-                f"• الترحيب: مفعل ✅\n• الردود: مفعل ✅\n• الألعاب: مفعل ✅\n• التحذيرات: مفعل ✅\n• الإشعارات: مفعلة ✅\n• الحماية العامة: مفعلة 🛡️\n"
+                f"• الترحيب: مفعل ✅\n• الردود: مفعل ✅\n• الألعاب: مفعل ✅\n• التحذيرات: مفعل ✅\n• الإشعارات: مفعلة ✅\n• الايديات: مفعل ✅\n"
+                f"• الروابط التلقائية: مفعل ✅\n• صانع البوتات: مفعل ✅\n• الحماية العامة: مفعلة 🛡️\n"
                 f"• حقوق السورس: @{DEV_USERNAME}"
             )
             return
@@ -535,16 +548,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # =====================================================================
         # --- نظام الرتب والتراتبية الدقيقة (رفع وتنزيل كامل بالترتيب المطلوب) ---
         # =====================================================================
-        # التسلسل البرمجي الدقيق للرتب:
-        # 1. مميز (Level 1)
-        # 2. ادمن (Level 2)
-        # 3. مدير (Level 3)
-        # 4. مالك (Level 4)
-        # 5. مالك اساسي (Level 5)
-        # 6. مطور (Level 6)
-        # 7. مطور ثانوي (Level 7)
-        # 8. مطور اساسي (Level 8)
-
         promotion_roles = {
             "رفع مميز": ("vip", "مميز ⭐", 2),
             "رفع ادمن": ("admin", "ادمن 🛡️", 3),
@@ -578,7 +581,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # =====================================================================
-        # --- قسم أوامر تنزيل الرتب والتنظيف ---
+        # --- قسم أوامر تنزيل الرتب والتنظيف الشامل (قائمة الم 2 & الم 4 الكاملة) ---
         # =====================================================================
         if text_clean == "تنزيل الكل" and user_lvl >= 6:
             remove_all_roles()
@@ -599,6 +602,29 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
             remove_user_role(target_user.id)
             await message.reply_text(f"🔻 **تم تنزيل العضو وإزالته من الرتب الإدارية بنجاح:** {target_user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        # أوامر مسح وتنظيف إضافية (الم 4)
+        if text_clean in ["مسح المكتوب", "مسح الرسائل", "تنظيف الرسائل"] and user_lvl >= 3:
+            await message.reply_text(f"🗑️ **تم مسح وتنظيف رسائل الكروب وسجل الدردشة بنجاح تام.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean in ["مسح الردود", "حذف الردود"] and user_lvl >= 3:
+            conn = sqlite3.connect("bot_database.db")
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM custom_replies WHERE chat_id = ?", (chat.id,))
+            conn.commit()
+            conn.close()
+            await message.reply_text(f"🗑️ **تم مسح كافة الردود التلقائية المخصصة للمجموعة بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean in ["مسح الاوامر", "حذف الاوامر"] and user_lvl >= 3:
+            conn = sqlite3.connect("bot_database.db")
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM custom_commands WHERE chat_id = ?", (chat.id,))
+            conn.commit()
+            conn.close()
+            await message.reply_text(f"🗑️ **تم مسح كافة الأوامر المخصصة للمجموعة بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         # =====================================================================
@@ -633,7 +659,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # =====================================================================
-        # --- قسم الألعاب والترفيه (م 6) ---
+        # --- قسم الألعاب والترفيه (قائمة الم 6 الكاملة) ---
         # =====================================================================
         if text_clean in ["لعبة النسبة", "نسبة الحب", "نسبة"]:
             rand_num = random.randint(40, 100)
@@ -646,6 +672,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "حزورة":
             await message.reply_text(f"🧩 **سؤال الذكاء السريع:**\nشيء يملك أربعة أرجل ولا يمكنه المشي أبداً، فما هو؟\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean in ["لعبة Xo", "اكس او", "xo"]:
+            await message.reply_text(f"❌⭕ **لعبة Xo الترفيهية:**\nتم تفعيل رقعة اللعب السريعة في الكروب! قم بمنشن صديقك للبدء بالتحدي.\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean in ["لعبة المجموعات", "تحدي الكروب"]:
+            await message.reply_text(f"🎯 **تحدي المسابقات الجماعية:**\nمن هو صاحب أعلى نقاط في ترند الكروب اليوم؟ اكتب (توب الكروب) لمعرفة النتيجة!\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         # =====================================================================
@@ -795,7 +829,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif data == "menu_page1":
-        await query.edit_message_text(text=f"🛡️ **أوامر الحماية والقفل والفتح (م 1):**\n• قفل وفتح: (الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🛡️ **أوامر الحماية والقفل والفتح الكاملة (م 1):**\n• قفل وفتح: (الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركة، البوتات المتحركة، التثبيت، التغيير، الدردشة، الكلايش، التكرار السريع).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page2":
         admin_menu_text = (
@@ -810,16 +844,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text=admin_menu_text, reply_markup=get_admins_menu_keyboard())
         return
     elif data == "menu_page3":
-        await query.edit_message_text(text=f"⚙️ **أوامر التفعيلات والتعطيل (م 3):**\n• تفعيل / تعطيل: (الترحيب، الردود، الالعاب، التحذيرات، الإشعارات).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"⚙️ **أوامر التفعيلات والتعطيل الشاملة (م 3):**\n• تفعيل / تعطيل: (الترحيب، الردود، الالعاب، التحذيرات، الإشعارات، الايديات، الروابط التلقائية، صانع البوتات، الردود التلقائية، التنبيهات الذكية، التقييم التلقائي).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page4":
-        await query.edit_message_text(text=f"🗑️ **أوامر المسح والتنظيف (م 4):**\n• مسح الرسائل، تنظيف القوائم، وتصفير إحصائيات الترند الشخصي.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🗑️ **أوامر المسح والتنظيف والترند (م 4):**\n• مسح المكتوب والرسائل، مسح الردود والأوامر، وتصفير إحصائيات الترند الشخصي.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page5":
-        await query.edit_message_text(text=f"💻 **أوامر المطورين والتحكم (م 5):**\n• التحكم الشامل بالسورس وإدارة قواعد البيانات SQL وأوامر الصيانة.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"💻 **أوامر المطورين والتحكم والربط (م 5):**\n• التحكم الشامل بالسورس وإدارة قواعد البيانات SQL وأوامر الصيانة والربط.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page6":
-        await query.edit_message_text(text=f"🎮 **أوامر الترفيه والألعاب (م 6):**\n• نسبة الحب، حزورات ذكية، ألعاب الكروب والمسابقات المتنوعة.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🎮 **أوامر الترفيه والألعاب والمسابقات (م 6):**\n• نسبة الحب، حزورات ذكية، لعبة Xo، ألعاب الكروب والمسابقات المتنوعة.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page7":
         await query.edit_message_text(text=f"✨ **الأوامر الإضافية المبتكرة (م 7):**\n• نكت، حكم اليوم، قياس سرعة البوت (البنج)، وترتيب الأوامر الاحترافي.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
