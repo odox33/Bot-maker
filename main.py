@@ -23,51 +23,52 @@ TOKEN = os.environ.get("BOT_TOKEN", "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8F
 DEV_USERNAME = "@odox3"
 CHANNEL_USERNAME = "@odox6"
 
-# إعدادات البوت والكروبات المفاعلة
-settings = {
-    "id_with_photo": True
-}
-active_groups = set() # لتخزين الكروبات المفاعلة
-
+# قواعد البيانات وإعدادات البوت
+settings = {"id_with_photo": True}
+active_groups = set() 
+custom_replies = {}  
+custom_commands = {} 
 user_message_counts = {}
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """عرض قائمة الأوامر الستة أو السبعة المطلوبة"""
+async def send_command_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة الأوامر الـ 7 الشاملة"""
     text = (
-        "🤖 **اليك اوامر البوت ﯡ.**\n\n"
-        "• ( 1p ) ~ اوامر الحماية 🛡️\n"
-        "• ( 2p ) ~ اوامر المشرفين 👑\n"
-        "• ( 3p ) ~ اوامر التفعيلات ⚙️\n"
-        "• ( 4p ) ~ اوامر المسح 🗑️\n"
-        "• ( 5p ) ~ اوامر المطورين 🛠️\n"
+        "🤖 **اليك اوامر البوت ﯡ الحماية الشاملة:**\n\n"
+        "• ( 1p ) ~ اوامر الحماية الكبرى 🛡️\n"
+        "• ( 2p ) ~ اوامر المشرفين والإشراف 👑\n"
+        "• ( 3p ) ~ اوامر التفعيلات والروابط ⚙️\n"
+        "• ( 4p ) ~ اوامر المسح والتنظيف 🗑️\n"
+        "• ( 5p ) ~ اوامر المطورين والتحكم 🛠️\n"
         "• ( 6p ) ~ اوامر الترفيه والالعاب 🎮\n"
-        "• ( 7p ) ~ اوامر الألعاب الإضافية 🎲"
+        "• ( 7p ) ~ أوامر الألعاب الإضافية والبحث 🎲"
     )
     
-    # الأزرار السبعة التفاعلية
     keyboard = [
-        [InlineKeyboardButton("• 1 •", callback_data="sec_1"), InlineKeyboardButton("• 2 •", callback_data="sec_2")],
-        [InlineKeyboardButton("• 3 •", callback_data="sec_3"), InlineKeyboardButton("• 4 •", callback_data="sec_4")],
-        [InlineKeyboardButton("• 5 •", callback_data="sec_5"), InlineKeyboardButton("• 6 •", callback_data="sec_6")],
-        [InlineKeyboardButton("• 7 • الألعاب الإضافية", callback_data="sec_7")]
+        [InlineKeyboardButton("• 1 • الحماية", callback_data="sec_1"), InlineKeyboardButton("• 2 • المشرفين", callback_data="sec_2")],
+        [InlineKeyboardButton("• 3 • التفعيلات", callback_data="sec_3"), InlineKeyboardButton("• 4 • المسح", callback_data="sec_4")],
+        [InlineKeyboardButton("• 5 • المطورين", callback_data="sec_5"), InlineKeyboardButton("• 6 • الترفيه", callback_data="sec_6")],
+        [InlineKeyboardButton("• 7 • الألعاب الإضافية واليوتيوب", callback_data="sec_7")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     if update.message:
         await update.message.reply_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+    elif update.callback_query and update.callback_query.message:
+        await update.callback_query.message.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالجة الأقسام السبعة للأزرار"""
+    """إدارة أزرار الأقسام السبعة"""
     query = update.callback_query
     await query.answer()
 
     if query.data == "sec_1":
         await query.edit_message_text(
-            "🛡️ **قسم أوامر الحماية اللانهائية:**\n\n"
+            "🛡️ **قسم أوامر الحماية الكبرى:**\n\n"
             "• `قفل الروابط` / `فتح الروابط`\n"
             "• `قفل التكرار` / `فتح التكرار`\n"
-            "• `طرد` (بالرد على المستخدم)\n"
-            "• `كتم` / `تكلم`",
+            "• `قفل السبرام` / `فتح السبرام`\n"
+            "• `طرد` (بالرد على المخالف)\n"
+            "• `كتم` / `تكلم` (بالرد)",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_home")]])
         )
@@ -75,22 +76,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "👑 **قسم أوامر المشرفين:**\n\n"
             "• `رفع [الرتبة]` / `تنزيل`\n"
-            "• `الرابط` أو `رابط` لجلب رابط الجروب الفوري",
+            "• `الرابط` أو `رابط` لجلب رابط الجروب\n"
+            "• تثبيت وإلغاء تثبيت الرسائل",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_home")]])
         )
     elif query.data == "sec_3":
         await query.edit_message_text(
-            "⚙️ **قسم أوامر التفعيلات:**\n\n"
-            "• `تفعيل` (داخل الجروب)\n"
-            "• `تفعيل الايدي بالصورة`\n"
-            "• `تعطيل الايدي بالصورة`",
+            "⚙️ **قسم أوامر التفعيلات والردود:**\n\n"
+            "• `تفعيل` (داخل الكروب لتشغيل الحماية)\n"
+            "• `تفعيل الايدي بالصورة` / `تعطيل الايدي بالصورة`\n"
+            "• `اضف رد [الكلمة] // [الرد]`\n"
+            "• `حذف رد [الكلمة]`",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_home")]])
         )
     elif query.data == "sec_4":
         await query.edit_message_text(
-            "🗑️ **قسم أوامر المسح:**\n\n"
+            "🗑️ **قسم أوامر المسح والتنظيف:**\n\n"
             "• `مسح الردود`\n"
             "• `مسح المكتومين`\n"
             "• `مسح المحظورين`",
@@ -99,9 +102,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     elif query.data == "sec_5":
         await query.edit_message_text(
-            "🛠️ **قسم أوامر المطورين:**\n\n"
-            f"• المطور الأساسي: {DEV_USERNAME}\n"
-            f"• قناة السورس: {CHANNEL_USERNAME}\n"
+            "🛠️ **قسم أوامر المطورين والاختصارات:**\n\n"
+            f"• المطور: {DEV_USERNAME}\n"
+            f"• القناة: {CHANNEL_USERNAME}\n"
+            "• `اضف امر [الاسم] // [الرد]`\n"
+            "• `حذف امر [الاسم]`\n"
             "• `اذاعة`",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_home")]])
@@ -109,44 +114,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "sec_6":
         await query.edit_message_text(
             "🎮 **قسم الترفيه والالعاب:**\n\n"
-            "• `العاب` أو `ألعاب`\n"
+            "• `ألعاب` أو `العاب` (قائمة الألعاب السريعة)\n"
             "• `حظك`\n"
-            "• اكتب `يوتيوب [اسم الأغنية]` للبحث الفوري!",
+            "• `تخمين`",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_home")]])
         )
     elif query.data == "sec_7":
         await query.edit_message_text(
-            "🎲 **قسم الألعاب الإضافية والتسلية:**\n\n"
-            "• لعبة تخمين الأرقام\n"
-            "• لعبة الصراحة والجرأة السريعة\n"
-            "• أسئلة عامة",
+            "🎲 **قسم الألعاب الإضافية والبحث:**\n\n"
+            "• لعبة الصراحة والجرأة\n"
+            "• لعبة حظ الأرقام\n"
+            "• `يوتيوب [اسم الأغنية]` للبحث الفوري وجلب الروابط!",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_home")]])
         )
     elif query.data == "back_home":
-        text = (
-            "🤖 **اليك اوامر البوت ﯡ.**\n\n"
-            "• ( 1p ) ~ اوامر الحماية 🛡️\n"
-            "• ( 2p ) ~ اوامر المشرفين 👑\n"
-            "• ( 3p ) ~ اوامر التفعيلات ⚙️\n"
-            "• ( 4p ) ~ اوامر المسح 🗑️\n"
-            "• ( 5p ) ~ اوامر المطورين 🛠️\n"
-            "• ( 6p ) ~ اوامر الترفيه والالعاب 🎮\n"
-            "• ( 7p ) ~ اوامر الألعاب الإضافية 🎲"
-        )
-        keyboard = [
-            [InlineKeyboardButton("• 1 •", callback_data="sec_1"), InlineKeyboardButton("• 2 •", callback_data="sec_2")],
-            [InlineKeyboardButton("• 3 •", callback_data="sec_3"), InlineKeyboardButton("• 4 •", callback_data="sec_4")],
-            [InlineKeyboardButton("• 5 •", callback_data="sec_5"), InlineKeyboardButton("• 6 •", callback_data="sec_6")],
-            [InlineKeyboardButton("• 7 • الألعاب الإضافية", callback_data="sec_7")]
-        ]
-        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+        await send_command_list(update, context)
 
 async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالجة كافة الأوامر والرسائل والتفعيلات"""
+    """المعالج الأساسي لكل رسائل وأوامر الكروبات"""
     
-    if update.message and update.message.new_chat_members:
+    if not update.message:
+        return
+
+    # الترحيب بالأعضاء الجدد
+    if update.message.new_chat_members:
         for member in update.message.new_chat_members:
             await update.message.reply_text(
                 f"✨ أهلاً بك يا [{member.first_name}](tg://user?id={member.id}) في المجموعه!\n📢 قناة السورس: {CHANNEL_USERNAME}",
@@ -154,7 +147,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         return
 
-    if not update.message or not update.message.text:
+    if not update.message.text:
         return
 
     text = update.message.text.strip()
@@ -165,18 +158,18 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message_counts[user.id] = user_message_counts.get(user.id, 0) + 1
     msg_count = user_message_counts[user.id]
 
-    # أمر تفعيل البوت داخل الكروب
+    # أمر التفعيل داخل الكروب
     if text == "تفعيل":
         if chat.type in ["group", "supergroup"]:
             active_groups.add(chat.id)
-            await msg.reply_text("✅ **تم تفعيل البوت في هذه المجموعة بنجاح وتشغيل الحماية والأوامر!**", parse_mode="Markdown")
+            await msg.reply_text("✅ **تم تفعيل البوت وحمايته الكاملة في هذه المجموعة بنجاح!**", parse_mode="Markdown")
         else:
             await msg.reply_text("هذا الأمر يُستخدم داخل المجموعات فقط.")
         return
 
-    # حماية الروابط تعمل إذا كان الكروب مفعل
+    # الحماية اللانهائية (حذف الروابط في الكروبات المفاعلة)
     if chat.type in ["group", "supergroup"] and chat.id in active_groups:
-        if "http://" in text or "https://" in text or "t.me/" in text or "www." in text:
+        if any(w in text.lower() for w in ["http://", "https://", "t.me/", "www."]):
             try:
                 member = await chat.get_member(user.id)
                 if member.status not in ["creator", "administrator"]:
@@ -186,11 +179,12 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
 
-    # عرض الأوامر الرئيسية (7 أقسام)
+    # عرض قائمة الأوامر (تظهر فوراً عند كتابة اوامر أو 1p وغيرها)
     if text in ["اوامر", "الأوامر", "أوامر", "1p", "2p", "3p", "4p", "5p", "6p", "7p"]:
-        await start_command(update, context)
+        await send_command_list(update, context)
         return
 
+    # التحكم بالايدي بالصورة
     global settings
     if text == "تفعيل الايدي بالصورة":
         settings["id_with_photo"] = True
@@ -201,7 +195,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text("❌ تم تعطيل عرض الأيدي بالصورة وأصبح نصياً.")
         return
 
-    # الأيدي بالصيغة المطلوبة تماماً
+    # أمر الايدي بالصيغة المطلوبة مع الصورة
     if text in ["ايدي", "ID", "ايديي", "معلوماتي"]:
         username_handle = f"@{user.username}" if user.username else "@zv11ss"
         id_formatted = (
@@ -221,7 +215,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text(id_formatted)
         return
 
-    # رابط المجموعة
+    # رابط الجروب
     if text in ["الرابط", "رابط", "رابط الجروب"]:
         if chat.type in ["group", "supergroup"]:
             try:
@@ -233,15 +227,61 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("هذا الأمر خاص بالمجموعات فقط.")
         return
 
-    # بحث يوتيوب
+    # بحث اليوتيوب
     if text.startswith("يوتيوب "):
         query_song = text.replace("يوتيوب ", "").strip()
         yt_result = (
             f"🎵 **نتائج البحث في اليوتيوب عن:** `{query_song}`\n\n"
-            f"• الرابط المقترح: https://www.youtube.com/results?search_query={query_song.replace(' ', '+')}\n"
+            f"• رابط البحث المباشر: https://www.youtube.com/results?search_query={query_song.replace(' ', '+')}\n"
             f"🎧 تم جلب الطلب بواسطة سورس تي بي."
         )
         await msg.reply_text(yt_result, parse_mode="Markdown")
+        return
+
+    # إضافة وحذف الردود والأوامر المخصصة
+    if text.startswith("اضف رد "):
+        try:
+            parts = text.replace("اضف رد ", "").split("//")
+            if len(parts) == 2:
+                kw, rep = parts[0].strip(), parts[1].strip()
+                custom_replies[kw] = rep
+                await msg.reply_text(f"✅ تم إضافة الرد للكلمة: `{kw}` بنجاح!", parse_mode="Markdown")
+        except Exception:
+            pass
+        return
+
+    if text.startswith("حذف رد "):
+        kw = text.replace("حذف رد ", "").strip()
+        if kw in custom_replies:
+            del custom_replies[kw]
+            await msg.reply_text(f"🗑️ تم حذف الرد بنجاح.")
+        return
+
+    if text.startswith("اضف امر "):
+        try:
+            parts = text.replace("اضف امر ", "").split("//")
+            if len(parts) == 2:
+                cmd_k, cmd_v = parts[0].strip(), parts[1].strip()
+                custom_commands[cmd_k] = cmd_v
+                await msg.reply_text(f"✅ تم إضافة الأمر `{cmd_k}` بنجاح!", parse_mode="Markdown")
+        except Exception:
+            pass
+        return
+
+    if text.startswith("حذف امر "):
+        cmd_k = text.replace("حذف امر ", "").strip()
+        if cmd_k in custom_commands:
+            del custom_commands[cmd_k]
+            await msg.reply_text(f"🗑️ تم حذف الأمر بنجاح.")
+        return
+
+    # فحص المخزن للردود والأوامر
+    if text in custom_replies:
+        await msg.reply_text(custom_replies[text])
+        return
+
+    if text in custom_commands:
+        await msg.reply_text(custom_commands[text])
         return
 
     # رفع وتنزيل
@@ -266,9 +306,9 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("⚠️ قم بالرد على رسالة الشخص المراد طرده مع كتابة `طرد`.")
         return
 
-    # الألعاب
+    # ألعاب
     if text in ["ألعاب", "العاب", "الالعاب"]:
-        await msg.reply_text("🎮 **قائمة الألعاب السريعة:**\n• لعبة الصراحة والجرأة\n• حظك اليوم\n• تخمين الأرقام", parse_mode="Markdown")
+        await msg.reply_text("🎮 **قائمة الألعاب السريعة:**\n• لعبة الصراحة والجرأة\n• حظك اليوم\n• تخمين الأرقام والأسئلة العامة", parse_mode="Markdown")
         return
 
 def main():
@@ -278,11 +318,11 @@ def main():
 
     application = Application.builder().token(TOKEN).build()
 
-    application.add_handler(CommandHandler(["start", "cmds"], start_command))
+    application.add_handler(CommandHandler(["start", "cmds"], start_command_func := lambda u, c: send_command_list(u, c)))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT | filters.StatusUpdate.NEW_CHAT_MEMBERS & ~filters.COMMAND, handle_messages))
 
-    logger.info("🤖 تم تشغيل بوت Tb Source بنجاح مع التفعيل والأوامر السبعة...")
+    logger.info("🤖 تم تشغيل بوت Tb Source كبوت حماية شامل بنجاح...")
     application.run_polling()
 
 if __name__ == "__main__":
