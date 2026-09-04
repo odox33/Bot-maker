@@ -12,23 +12,21 @@ logger = logging.getLogger(__name__)
 
 BOT_NAME = "Source TP"
 BOT_USERNAME = "@odox6"
-DEV_USERNAME = "@odox6"
-DEV_ID = 8297163405  # ايدي المطور الأساسي للتحكم بالصنع والمدفوعات
+DEV_ID = 8297163405  # ايدي المطور الأساسي
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
 
 app = Flask(__name__)
 application = None
 
-# إعداد قاعدة البيانات المحلية لتخزين البوتات المصنوعة
+# إعداد قاعدة البيانات للمجموعات المفعلة والبوتات المصنوعة
 def init_db():
     conn = sqlite3.connect("source_tp.db")
     cursor = conn.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS created_bots (
-            token TEXT PRIMARY KEY,
-            owner_id INTEGER,
-            bot_type TEXT,
+        CREATE TABLE IF NOT EXISTS active_groups (
+            chat_id INTEGER PRIMARY KEY,
+            added_by INTEGER,
             status TEXT
         )
     """)
@@ -41,13 +39,11 @@ async def setup_bot():
     global application
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # الأوامر الرئيسية وأوامر التسلية والأيدي
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("id", id_command))
-    application.add_handler(CommandHandler("games", games_menu))
     application.add_handler(CommandHandler("admin", admin_panel))
     application.add_handler(CallbackQueryHandler(callback_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, group_text_handler))
     
     await application.initialize()
     if RENDER_URL:
@@ -57,194 +53,129 @@ async def setup_bot():
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    chat = update.effective_chat
+    
+    if chat.type != "private":
+        return  # إذا كان في مجموعة يتجاهل الـ start
+        
     keyboard = [
         [InlineKeyboardButton("• اضف البوت لمجموعتك •", url=f"https://t.me/{context.bot.username}?startgroup=true")],
-        [InlineKeyboardButton("• قسم صنع البوتات •", callback_data="make_bot_menu")],
-        [InlineKeyboardButton("• ألعاب السورس •", callback_data="games_menu_cb")],
         [InlineKeyboardButton("• قناة السورس •", url="https://t.me/odox6")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     welcome_text = (
         f"مرحباً بك عزيزي في بوت {BOT_NAME} 🤖\n\n"
-        f"• أسرع نظام حماية وصنع بوتات مجموعات متطور.\n"
-        f"• يمكنك صنع بوتك الخاص مجاناً أو مدفوعاً والبدء بالبيع الآن!"
+        f"• أسرع بوت حماية مجموعات متطور.\n"
+        f"• أضف البوت إلى مجموعتك واكتب **تفعيل** لتبدأ الحماية وإدارة القروب فوراً!"
     )
-    if update.message:
-        await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
+    
     text = (
         f"• - : ايديك : ( `{user.id}` )\n"
         f"• - : معرفك : ( @{user.username if user.username else 'لا يوجد'} )\n"
-        f"• - : رتبتك : ( المطور الاساسي )\n"
-        f"• - : رسائلك : ( 9234 )\n"
-        f"• - : نقاطك : ( 68 )\n"
+        f"• - : اسمك : ( {user.first_name} )\n"
+        f"• - : ايدي القروب : ( `{chat.id}` )\n"
         f"• معلومات السورس : {BOT_NAME} ({BOT_USERNAME})"
     )
-    if update.message:
-        await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, parse_mode="Markdown")
 
-async def games_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("• لعبة الحظ •", callback_data="game_luck"), InlineKeyboardButton("• لعبة الزلاطة •", callback_data="game_salad")],
-        [InlineKeyboardButton("• البلاي جراوند •", callback_data="game_play")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    text = f"🎮 **قسم الألعاب والتسلية في {BOT_NAME}**\nاختر لعبتك المفضلة أدناه:"
-    if update.message:
-        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-
-async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def group_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
-    
+        
     text = update.message.text.strip()
+    chat = update.effective_chat
     user = update.effective_user
     
-    if text in ["ايدي", "الاي دي", "/id"]:
-        await id_command(update, context)
-    
-    elif text in ["صنع", "صنع بوت", "البوتات المصنوعة"]:
+    # 1. أمر التفعيل داخل المجموعة
+    if text == "تفعيل":
+        if chat.type == "private":
+            await update.message.reply_text("• هذا الأمر يُستخدم داخل المجموعات فقط لتفعيل البوت!")
+            return
+            
+        conn = sqlite3.connect("source_tp.db")
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO active_groups (chat_id, added_by, status) VALUES (?, ?, ?)",
+                       (chat.id, user.id, "active"))
+        conn.commit()
+        conn.close()
+        
         keyboard = [
-            [InlineKeyboardButton("• صنع بوت مجاني (بحقوق السورس) •", callback_data="make_free_bot")],
-            [InlineKeyboardButton("• صنع بوت مدفوع (تفعيل خاص VIP) •", callback_data="make_paid_bot")],
-            [InlineKeyboardButton("• بوتاتي المصنوعة •", callback_data="my_bots")]
+            [InlineKeyboardButton("• قناة السورس •", url="https://t.me/odox6")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
-            f"• أهلاً بك في قسم صنع البوتات التابع لـ {BOT_NAME} 🤖\n"
-            f"• أنشئ بوتك الخاص الآن وقم بإدارته وبيعه بكل سهولة:",
-            reply_markup=reply_markup
-        )
-    
-    # فحص إذا كان المستخدم يرسل توكن بوت جديد لصنعه
-    elif context.user_data.get("waiting_for_free_token"):
-        token = text
-        context.user_data["waiting_for_free_token"] = False
-        
-        conn = sqlite3.connect("source_tp.db")
-        cursor = conn.cursor()
-        try:
-            cursor.execute("INSERT INTO created_bots (token, owner_id, bot_type, status) VALUES (?, ?, ?, ?)",
-                           (token, user.id, "free", "active"))
-            conn.commit()
-            await update.message.reply_text(
-                f"✅ **تم إنشاء بوتك المجاني بنجاح!**\n\n"
-                f"• التوكن مسجل بنظام {BOT_NAME}.\n"
-                f"• ملاحظة: البوت المجاني يعمل بفرض ظهور حقوق قناة السورس ({BOT_USERNAME}).",
-                parse_mode="Markdown"
-            )
-        except sqlite3.IntegrityError:
-            await update.message.reply_text("⚠️ هذا التوكن مسجل مسبقاً في النظام!")
-        conn.close()
-
-    elif context.user_data.get("waiting_for_paid_token"):
-        token = text
-        context.user_data["waiting_for_paid_token"] = False
-        
-        # إرسال طلب تفعيل البوت المدفوع إلى المطور الأساسي
-        keyboard = [
-            [InlineKeyboardButton("• تفعيل البوت الآن •", callback_data=f"approve_paid_{user.id}_{token[:10]}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await context.bot.send_message(
-            chat_id=DEV_ID,
-            text=f"💎 **طلب تفعيل بوت مدفوع جديد!**\n\n"
-                 f"• صاحب البوت: {user.first_name} (ID: `{user.id}`)\n"
-                 f"• المعرف: @{user.username if user.username else 'لا يوجد'}\n"
-                 f"• توكن البوت: `{token}`",
+            f"✅ **تم تفعيل البوت بنجاح في المجموعة!**\n\n"
+            f"• بواسطة العضو: {user.first_name}\n"
+            f"• تم تفعيل نظام الحماية، الأيدي، البحث، وأوامر الإدارة بالكامل عبر {BOT_NAME}.",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-        await update.message.reply_text("⏳ تم إرسال توكن بوتك المدفوع إلى المطور الأساسي (`@odox6`) للمراجعة والتفعيل الفوري.")
+        return
+
+    # التحقق هل المجموعة مفعلة لكي تستجيب للأوامر
+    if chat.type != "private":
+        conn = sqlite3.connect("source_tp.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT status FROM active_groups WHERE chat_id = ?", (chat.id,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result or result[0] != "active":
+            # إذا لم يتم كتابة تفعيل، لا يستجيب القروب للأوامر
+            return
+
+    # 2. أمر الأيدي داخل القروب
+    if text in ["ايدي", "الاي دي", "/id", "ايديي"]:
+        await id_command(update, context)
+
+    # 3. أمر البحث باليوتيوب (مثال: بحث أو يوتيوب [كلمة البحث])
+    elif text.startswith("بحث ") or text.startswith("يوتيوب "):
+        query_text = text.replace("بحث ", "", 1).replace("يوتيوب ", "", 1).strip()
+        yt_url = f"https://www.youtube.com/results?search_query={query_text.replace(' ', '+')}"
+        keyboard = [[InlineKeyboardButton("• اضغط لمشاهدة نتائج البحث •", url=yt_url)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(f"🔍 نتائج البحث في اليوتيوب عن: `{query_text}`", reply_markup=reply_markup, parse_mode="Markdown")
+
+    # 4. أوامر الإدارة والحماية (طرد، كتم، رفع مشرف)
+    elif text == "طرد" and update.message.reply_to_message:
+        try:
+            target_user = update.message.reply_to_message.from_user
+            await context.bot.ban_chat_member(chat.id, target_user.id)
+            await update.message.reply_text(f"🔨 تم طرد العضو {target_user.first_name} بنجاح.")
+        except Exception:
+            await update.message.reply_text("⚠️ عذراً، لا أملك صلاحية الطرد أو أن العضو مشرف.")
+
+    elif text == "رفع مشرف" and update.message.reply_to_message:
+        try:
+            target_user = update.message.reply_to_message.from_user
+            await context.bot.promote_chat_member(
+                chat.id, target_user.id,
+                can_manage_chat=True,
+                can_delete_messages=True,
+                can_invite_users=True
+            )
+            await update.message.reply_text(f"⭐ تم رفع العضو {target_user.first_name} مشرفاً بنجاح.")
+        except Exception:
+            await update.message.reply_text("⚠️ عذراً، لا أملك صلاحية رفع المشرفين.")
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user.id != DEV_ID:
-        await update.message.reply_text("عذراً، هذه اللوحة خاصة بالمطور الأساسي فقط.")
         return
-        
-    keyboard = [
-        [InlineKeyboardButton("• إحصائيات Source TP •", callback_data="admin_stats")],
-        [InlineKeyboardButton("• قائمة البوتات المصنوعة •", callback_data="admin_list_bots")],
-        [InlineKeyboardButton("• قسم الإذاعة •", callback_data="admin_broadcast")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    text = f"⚡️ **لوحة التحكم الخاصة بالمطور الأساسي لـ {BOT_NAME}**"
-    if update.message:
-        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    await update.message.reply_text(f"⚡️ أهلاً بك يا مطور {BOT_NAME} الأساسي في لوحة التحكم الخاصة.")
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    data = query.data
-    
-    if data == "make_bot_menu":
-        keyboard = [
-            [InlineKeyboardButton("• صنع بوت مجاني •", callback_data="make_free_bot")],
-            [InlineKeyboardButton("• صنع بوت مدفوع •", callback_data="make_paid_bot")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("• اختر نوع البوت الذي تريد صنعه:", reply_markup=reply_markup)
-        
-    elif data == "games_menu_cb":
-        await query.edit_message_text("🎮 ألعاب سورس ماريو وتي بي مفعلة وتعمل بكفاءة عالية داخل المجموعات!")
-        
-    elif data == "make_free_bot":
-        context.user_data["waiting_for_free_token"] = True
-        await query.edit_message_text(
-            f"🤖 **إنشاء بوت مجاني**\n\n"
-            f"• أرسل الآن **توكن البوت** الخاص بك المستلم من @BotFather في الشات هنا.\n"
-            f"• سيتم تفعيل البوت فوراً مع إبقاء حقوق قناة السورس ({BOT_USERNAME}).",
-            parse_mode="Markdown"
-        )
-        
-    elif data == "make_paid_bot":
-        context.user_data["waiting_for_paid_token"] = True
-        keyboard = [
-            [InlineKeyboardButton("• مراسلة المطور للدفع والتفعيل •", url=f"https://t.me/odox3")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            f"💎 **إنشاء بوت مدفوع (VIP)**\n\n"
-            f"• البوت المدفوع يكون بدون حقوق إجبارية وخاص بك بالكامل.\n"
-            f"• تواصل أولاً مع المطور ({DEV_USERNAME}) لإتمام الدفع، ثم أرسل **توكن البوت** هنا وسيقوم المطور بتفعيله حصراً.",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        
-    elif data == "my_bots":
-        conn = sqlite3.connect("source_tp.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT bot_type, status FROM created_bots WHERE owner_id = ?", (query.from_user.id,))
-        bots = cursor.fetchall()
-        conn.close()
-        
-        if not bots:
-            await query.edit_message_text("• ليس لديك أي بوتات مصنوعة حالياً.")
-        else:
-            msg = "🤖 **قائمة بوتاتك المصنوعة:**\n\n"
-            for idx, (b_type, b_status) in enumerate(bots, 1):
-                msg += f"{idx} - النوع: {b_type.upper()} | الحالة: {b_status}\n"
-            await query.edit_message_text(msg, parse_mode="Markdown")
-            
-    elif data == "admin_stats":
-        conn = sqlite3.connect("source_tp.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM created_bots")
-        total_bots = cursor.fetchone()[0]
-        conn.close()
-        await query.edit_message_text(f"📊 **إحصائيات {BOT_NAME}:**\n\n• إجمالي البوتات المصنوعة بالنظام: {total_bots}", parse_mode="Markdown")
-        
-    elif data.startswith("game_"):
-        await query.edit_message_text("🎯 تم تفاعل لعبة السورس بنجاح داخل النظام!")
 
 @app.route('/')
 def home():
-    return "Source TP Maker Bot Server is running!"
+    return "Source TP Group Bot Server is running!"
 
 @app.route(f'/{BOT_TOKEN}', methods=['POST'])
 def webhook():
