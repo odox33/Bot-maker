@@ -19,7 +19,6 @@ app = Flask(__name__)
 application = None
 loop = None
 
-# قاعدة بيانات بسيطة لتفعيل القروبات
 def init_db():
     conn = sqlite3.connect("source_tp.db")
     cursor = conn.cursor()
@@ -57,7 +56,6 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     chat = update.effective_chat
     user = update.effective_user
     
-    # 1. أمر التفعيل داخل المجموعة
     if text == "تفعيل":
         if chat.type == "private":
             await update.message.reply_text("• هذا الأمر يُستخدم داخل المجموعات فقط!")
@@ -72,7 +70,6 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("✅ **تم تفعيل البوت بنجاح!**\n\n• الآن يمكنك استخدام أمر ( ايدي ) أو ( طرد ) أو ( رفع مشرف ).", parse_mode="Markdown")
         return
 
-    # التحقق هل المجموعة مفعلة لكي يستجيب البوت للأوامر داخلها
     if chat.type != "private":
         conn = sqlite3.connect("source_tp.db")
         cursor = conn.cursor()
@@ -83,7 +80,6 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         if not result or result[0] != "active":
             return
 
-    # 2. أمر الأيدي (بنفس تنسيق سورس ماريو الفخم)
     if text in ["ايدي", "الاي دي", "ايديي", "/id"]:
         id_text = (
             f"• - : ايديك : ( `{user.id}` )\n"
@@ -94,7 +90,6 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         await update.message.reply_text(id_text, parse_mode="Markdown")
 
-    # 3. أمر طرد (بالرد على الرسالة)
     elif text == "طرد" and update.message.reply_to_message:
         try:
             target_user = update.message.reply_to_message.from_user
@@ -103,7 +98,6 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception:
             await update.message.reply_text("⚠️ عذراً، لا أملك صلاحية الطرد أو أن الشخص مشرف.")
 
-    # 4. أمر رفع مشرف (بالرد على الرسالة)
     elif text == "رفع مشرف" and update.message.reply_to_message:
         try:
             target_user = update.message.reply_to_message.from_user
@@ -123,13 +117,11 @@ def home():
 
 @app.route(f'/{BOT_TOKEN}', methods=['POST'])
 def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = Update.de_json(json_string, application.bot)
-        future = asyncio.run_coroutine_threadsafe(application.process_update(update), loop)
-        future.result()
-        return 'ok', 200
-    return 'invalid format', 403
+    json_data = request.get_json(force=True)
+    update = Update.de_json(json_data, application.bot)
+    future = asyncio.run_coroutine_threadsafe(application.process_update(update), loop)
+    future.result()
+    return 'ok', 200
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
