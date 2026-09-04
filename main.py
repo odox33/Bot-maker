@@ -19,7 +19,7 @@ CHANNEL_USERNAME = "@odox6"
 START_TIME = time.time()
 
 # =====================================================================
-# --- قاعدة البيانات وأنظمة التخزين الموسعة (Database & Storage) ---
+# --- قاعدة البيانات وأنظمة التخزين الموسعة والمطورة (Database & Storage) ---
 # =====================================================================
 
 def init_db():
@@ -70,11 +70,24 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS group_welcome (
+            chat_id INTEGER PRIMARY KEY,
+            welcome_text TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS group_bot_names (
+            chat_id INTEGER PRIMARY KEY,
+            bot_custom_name TEXT
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS made_bots (
             owner_id INTEGER PRIMARY KEY,
             bot_token TEXT,
             bot_type TEXT,
             bot_username TEXT,
+            custom_bot_display_name TEXT,
             created_at TEXT
         )
     """)
@@ -131,7 +144,6 @@ def get_user_role_title(user_id, username):
     }
     return roles_map.get(key, "عضو 👤")
 
-# --- نظام سلم الرتب والصلاحيات التراكمية المحدث حتى المطور الأساسي ---
 ROLE_LEVELS = {
     "member": 0,
     "vip": 1,
@@ -195,6 +207,36 @@ def set_feature_status(chat_id, feature_key, status):
     conn.commit()
     conn.close()
 
+def get_group_welcome(chat_id):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT welcome_text FROM group_welcome WHERE chat_id = ?", (chat_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else "أهلاً بك عزيزي في الكروب 🌸 نورتنا يا أسطورة!"
+
+def set_group_welcome(chat_id, text):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO group_welcome (chat_id, welcome_text) VALUES (?, ?)", (chat_id, text))
+    conn.commit()
+    conn.close()
+
+def get_group_bot_name(chat_id):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT bot_custom_name FROM group_bot_names WHERE chat_id = ?", (chat_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else "سورس اندريس 🤖"
+
+def set_group_bot_name(chat_id, name):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO group_bot_names (chat_id, bot_custom_name) VALUES (?, ?)", (chat_id, name))
+    conn.commit()
+    conn.close()
+
 def add_custom_reply(chat_id, keyword, reply_text):
     conn = sqlite3.connect("bot_database.db")
     cursor = conn.cursor()
@@ -245,8 +287,8 @@ def get_custom_command(chat_id, cmd_name):
 
 def get_start_private_menu():
     keyboard = [
-        [InlineKeyboardButton("🛠️ قسم صناعة البوتات (المصنع)", callback_data="factory_main")],
-        [InlineKeyboardButton("📚 قائمة الأوامر الشاملة", callback_data="back_to_main_cmds")],
+        [InlineKeyboardButton("🛠️ قسم صناعة البوتات والمصنع (Andress)", callback_data="factory_main")],
+        [InlineKeyboardButton("📚 قائمة الأوامر والشاملة (سورس اندريس)", callback_data="back_to_main_cmds")],
         [InlineKeyboardButton("💎 قناة التحديثات والاصدارات", url=f"https://t.me/{CHANNEL_USERNAME.replace('@','')}")],
         [InlineKeyboardButton("👨‍💻 تواصل مع المطور الأساسي", url=f"https://t.me/{DEV_USERNAME}")]
     ]
@@ -263,9 +305,9 @@ def get_factory_menu():
 
 def get_main_commands_menu():
     keyboard = [
-        [InlineKeyboardButton("• [ م 1 ] الحماية الشاملة •", callback_data="menu_page1"), InlineKeyboardButton("• [ م 2 ] المشرفين والرتب •", callback_data="menu_page2")],
-        [InlineKeyboardButton("• [ م 3 ] التفعيلات والتعطيل •", callback_data="menu_page3"), InlineKeyboardButton("• [ م 4 ] المسح والتنظيف •", callback_data="menu_page4")],
-        [InlineKeyboardButton("• [ م 5 ] المطورين والتحكم •", callback_data="menu_page5"), InlineKeyboardButton("• [ م 6 ] الألعاب والمسابقات •", callback_data="menu_page6")],
+        [InlineKeyboardButton("• [ م 1 ] الحماية الشاملة المتقدمة •", callback_data="menu_page1"), InlineKeyboardButton("• [ م 2 ] المشرفين والرتب العليا •", callback_data="menu_page2")],
+        [InlineKeyboardButton("• [ م 3 ] التفعيلات والتعطيل والترحيب •", callback_data="menu_page3"), InlineKeyboardButton("• [ م 4 ] المسح والتنظيف والترند •", callback_data="menu_page4")],
+        [InlineKeyboardButton("• [ م 5 ] المطورين وتعديل الأسماء •", callback_data="menu_page5"), InlineKeyboardButton("• [ م 6 ] الألعاب والمسابقات (20 لعبة) •", callback_data="menu_page6")],
         [InlineKeyboardButton("• [ م 7 ] الأوامر الإضافية المبتكرة •", callback_data="menu_page7")],
         [InlineKeyboardButton("🔙 رجوع للوحة الرئيسية", callback_data="back_to_start")]
     ]
@@ -302,14 +344,31 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     role_title = get_user_role_title(user.id, user.username)
     user_lvl = get_role_level(user.id, user.username)
 
+    # --- الترحيب التلقائي بالأعضاء الجدد في المجموعات ---
+    if message.new_chat_members:
+        for new_member in message.new_chat_members:
+            if new_member.id == context.bot.id:
+                continue
+            custom_welcome = get_group_welcome(chat.id)
+            formatted_welcome = (
+                custom_welcome
+                .replace("{name}", new_member.first_name)
+                .replace("{username}", f"@{new_member.username}" if new_member.username else "لا يوجد")
+                .replace("{id}", str(new_member.id))
+            )
+            await message.reply_text(
+                f"✨ **ترحيب خاص بالعضو الجديد:**\n\n{formatted_welcome}\n\n• من سورس اندريس الحصري: @{DEV_USERNAME}"
+            )
+        return
+
     # --- معالجة المحادثات الخاصة (Private Chats) ---
     if chat.type == "private":
         save_user(user.id, user.username, user.full_name)
         
         if text_clean == "/start":
             await message.reply_text(
-                f"✨ **أهلاً بك عزيزي في بوت المصنع والسورس المطور الشامل (5.3)** 🤖\n\n"
-                f"• أقوى بوت لإدارة المجموعات وصناعة البوتات التلقائية.\n"
+                f"✨ **أهلاً بك عزيزي في سورس اندريس (Andress Source 6.0)** 🤖\n\n"
+                f"• أقوى سورس وبوت تليجرام لإدارة المجموعات وصناعة البوتات التلقائية بكفاءة فائقة.\n"
                 f"• المطور الأساسي: @{DEV_USERNAME}\n"
                 f"• قناة السورس الرسمية: {CHANNEL_USERNAME}\n\n"
                 f"اختر أحد الخيارات بالأسفل للبدء بالتحكم أو صناعة بوتك الخاص:",
@@ -321,16 +380,16 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bot_token = text_clean
             conn = sqlite3.connect("bot_database.db")
             cursor = conn.cursor()
-            cursor.execute("INSERT OR REPLACE INTO made_bots (owner_id, bot_token, bot_type, bot_username, created_at) VALUES (?, ?, ?, ?, ?)",
-                           (user.id, bot_token, "مجاني (Free)", f"@Bot_{random.randint(1000,9999)}", time.strftime("%Y-%m-%d")))
+            cursor.execute("INSERT OR REPLACE INTO made_bots (owner_id, bot_token, bot_type, bot_username, custom_bot_display_name, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                           (user.id, bot_token, "مجاني (Free)", f"@Andress_Bot_{random.randint(1000,9999)}", "اندريس المجاني", time.strftime("%Y-%m-%d")))
             conn.commit()
             conn.close()
             context.user_state = None
             await message.reply_text(
-                f"🎉 **تم إنشاء بوتك المجاني بنجاح تام!**\n\n"
-                f"• نوع البوت: مجاني 🤖\n"
-                f"• حالة الخادم: يعمل الآن على استضافتنا السحابية ⚡\n"
-                f"• حقوق المطور: @{DEV_USERNAME}",
+                f"🎉 **تم إنشاء بوتك المجاني عبر سورس اندريس بنجاح تام!**\n\n"
+                f"• اسم البوت الافتراضي: اندريس المجاني\n"
+                f"• حالة الخادم: يعمل الآن على الاستضافات السحابية ⚡\n"
+                f"• حقوق المطور الأساسي: @{DEV_USERNAME}",
                 reply_markup=get_factory_menu()
             )
             return
@@ -339,16 +398,16 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bot_token = text_clean
             conn = sqlite3.connect("bot_database.db")
             cursor = conn.cursor()
-            cursor.execute("INSERT OR REPLACE INTO made_bots (owner_id, bot_token, bot_type, bot_username, created_at) VALUES (?, ?, ?, ?, ?)",
-                           (user.id, bot_token, "مدفوع VIP (Paid)", f"@VIP_Bot_{random.randint(1000,9999)}", time.strftime("%Y-%m-%d")))
+            cursor.execute("INSERT OR REPLACE INTO made_bots (owner_id, bot_token, bot_type, bot_username, custom_bot_display_name, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                           (user.id, bot_token, "مدفوع VIP (Paid)", f"@Andress_VIP_{random.randint(1000,9999)}", "اندريس المدفوع VIP", time.strftime("%Y-%m-%d")))
             conn.commit()
             conn.close()
             context.user_state = None
             await message.reply_text(
-                f"💎 **تم تفعيل وإنشاء بوتك المدفوع بنجاح خارق!**\n\n"
-                f"• نوع البوت: VIP مدفوع بمميزات كاملة 🚀\n"
-                f"• حماية قصوى + سرعة خيالية + استجابة فورية.\n"
-                f"• حقوق المطور: @{DEV_USERNAME}",
+                f"💎 **تم تفعيل وإنشاء بوتك المدفوع VIP بنجاح خارق عبر سورس اندريس!**\n\n"
+                f"• اسم البوت: اندريس المدفوع VIP 🚀\n"
+                f"• حماية قصوى + سرعة خيالية + استجابة فورية وحصريات.\n"
+                f"• حقوق المطور الأساسي: @{DEV_USERNAME}",
                 reply_markup=get_factory_menu()
             )
             return
@@ -360,9 +419,19 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_user(user.id, user.username, user.full_name)
         update_user_stats(user.id, is_photo=bool(message.photo))
 
+        # --- الرد عند كتابة "بوت" حصرياً ---
+        if text_clean.lower() == "بوت":
+            current_bot_name = get_group_bot_name(chat.id)
+            await message.reply_text(
+                f"🤖 **أنا {current_bot_name}**\n"
+                f"• أنا سورس اندريس القوي والمطور لإدارة وحماية الكروبات بكفاءة فائقة.\n"
+                f"• المطور الأساسي ورئيس السورس: @{DEV_USERNAME}"
+            )
+            return
+
         if text_clean == "تفعيل":
             activate_group(chat.id, chat.title)
-            await message.reply_text(f"✅ **تم تفعيل سورس Tp المتطور بواسطة المطور الأساسي @{DEV_USERNAME} والحماية الشاملة في هذه المجموعة بنجاح تام!**")
+            await message.reply_text(f"✅ **تم تفعيل سورس اندريس المتطور والحماية الشاملة في هذه المجموعة بنجاح تام!**\n• المطور الأساسي: @{DEV_USERNAME}")
             return
 
         reply = message.reply_to_message
@@ -384,9 +453,58 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "ترتيب الاوامر":
             markup_order = InlineKeyboardMarkup([
-                [InlineKeyboardButton("قناة السورس الرسمية 🍓", url=f"https://t.me/{CHANNEL_USERNAME.replace('@','')}")]
+                [InlineKeyboardButton("قناة سورس اندريس الرسمية 🍓", url=f"https://t.me/{CHANNEL_USERNAME.replace('@','')}")]
             ])
-            await message.reply_text("- : تم ترتيب الاوامر الاساسية باحترافية تامة تصل للمطور الأساسي،", reply_markup=markup_order)
+            await message.reply_text("- : تم ترتيب اوامر سورس اندريس الأساسية باحترافية تامة وتصل للمطور الأساسي،", reply_markup=markup_order)
+            return
+
+        # =====================================================================
+        # --- أوامر تعيين وتعديل الترحيب واسم البوت للمطور والمدراء ---
+        # =====================================================================
+        if text_clean.startswith("تعيين ترحيب ") or text_clean.startswith("وضع ترحيب "):
+            if user_lvl < 3:
+                await message.reply_text("⚠️ عذراً، تعيين رسالة الترحيب يتطلب رتبة **مدير** أو أعلى!")
+                return
+            new_wel_text = text_clean.replace("تعيين ترحيب ", "").replace("وضع ترحيب ", "").strip()
+            set_group_welcome(chat.id, new_wel_text)
+            await message.reply_text(
+                f"✅ **تم تحديث وتعيين رسالة الترحيب في الكروب بنجاح!**\n\n"
+                f"• النص الجديد:\n`{new_wel_text}`\n\n"
+                f"*(يمكنك استخدام المتغيرات: `{{name}}` لاسم العضو، `{{username}}` لمعرفه، `{{id}}` لأيديه)*\n"
+                f"• سورس اندريس: @{DEV_USERNAME}"
+            )
+            return
+
+        if text_clean == "عرض الترحيب":
+            current_wel = get_group_welcome(chat.id)
+            await message.reply_text(f"📋 **رسالة الترحيب الحالية في الكروب:**\n\n`{current_wel}`\n• سورس اندريس: @{DEV_USERNAME}")
+            return
+
+        # صلاحيات التحكم باسم البوت في الكروب وفي البوتات المصنوعة
+        if text_clean.startswith("تعيين اسم البوت ") or text_clean.startswith("وضع اسم البوت "):
+            if user_lvl < 5 and user_lvl < 8:
+                await message.reply_text("⚠️ عذراً، هذا الأمر مخصص للمطور الأساسي والمالك الأساسي فقط لتغيير اسم البوت!")
+                return
+            new_b_name = text_clean.replace("تعيين اسم البوت ", "").replace("وضع اسم البوت ", "").strip()
+            set_group_bot_name(chat.id, new_b_name)
+            
+            # تحديث اسم البوت في جدول البوتات المصنوعة للمستخدم إن وجد
+            conn = sqlite3.connect("bot_database.db")
+            cursor = conn.cursor()
+            cursor.execute("UPDATE made_bots SET custom_bot_display_name = ? WHERE owner_id = ?", (new_b_name, user.id))
+            conn.commit()
+            conn.close()
+
+            await message.reply_text(
+                f"🏷️ **تم تغيير اسم البوت بنجاح خارق!**\n\n"
+                f"• الاسم الجديد في هذا الكروب وفي بوتاتك المصنوعة: **{new_b_name}**\n"
+                f"• سورس اندريس الحصري: @{DEV_USERNAME}"
+            )
+            return
+
+        if text_clean == "اسم البوت":
+            current_b_name = get_group_bot_name(chat.id)
+            await message.reply_text(f"🤖 **اسم البوت الحالي:** **{current_b_name}**\n• المطور الأساسي: @{DEV_USERNAME}")
             return
 
         # --- الأوامر والردود المخصصة ---
@@ -394,7 +512,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cmd_key = text_clean.replace("اضف امر ", "").strip()
             cmd_val = reply.text or reply.caption or "محتوى الأمر المخصص"
             add_custom_command(chat.id, cmd_key, cmd_val)
-            await message.reply_text(f"➕ **تم إضافة الأمر الجديد بنجاح:** `{cmd_key}`\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"➕ **تم إضافة الأمر الجديد بنجاح في سورس اندريس:** `{cmd_key}`\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean.startswith("حذف امر ") and user_lvl >= 2:
@@ -429,7 +547,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # --- سرعة البوت وترند الكروب ---
         if text_clean in ["سرعة البوت", "البنج", "السرعة"]:
             ping_time = round((time.time() - START_TIME) % 1, 3) * 1000
-            await message.reply_text(f"⚡ **سرعة استجابة السورس (البنج):** `{int(ping_time)} ms`\n• يعمل بكفاءة خارقة على استضافات 2026\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"⚡ **سرعة استجابة سورس اندريس (البنج):** `{int(ping_time)} ms`\n• يعمل بكفاءة خارقة على استضافات 2026\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean in ["توب الكروب", "لوحة الشرف", "الترند"]:
@@ -439,7 +557,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             top_users = cursor.fetchall()
             conn.close()
             
-            top_text = "🏆 **قائمة الشرف والترند الأنشط في الكروب:**\n\n"
+            top_text = "🏆 **قائمة الشرف والترند الأنشط في الكروب (سورس اندريس):**\n\n"
             for idx, (uid, pts) in enumerate(top_users, 1):
                 top_text += f"{idx} • الأيدي (`{uid}`) - النقاط: **{pts}** نقطة 🔥\n"
             top_text += f"\n• حقوق السورس: @{DEV_USERNAME}"
@@ -447,7 +565,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # =====================================================================
-        # --- نظام القفل والفتح الشامل (حماية متقدمة ومحدثة بالكامل) ---
+        # --- نظام القفل والفتح الشامل الموسع (حماية متقدمة ومحدثة بالكامل) ---
         # =====================================================================
         locks_map = {
             "قفل الروابط": ("links", True), "فتح الروابط": ("links", False),
@@ -471,16 +589,20 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "قفل الصوتيات": ("audio", True), "فتح الصوتيات": ("audio", False),
             "قفل البصمات": ("voices", True), "فتح البصمات": ("voices", False),
             "قفل الكوبونات": ("coupons", True), "فتح الكوبونات": ("coupons", False),
-            "قفل التاك الجماعي": ("mass_tag", True), "فتح التاك الجماعي": ("mass_tag", False)
+            "قفل التاك الجماعي": ("mass_tag", True), "فتح التاك الجماعي": ("mass_tag", False),
+            "قفل التفاعل الوهمي": ("fake_interact", True), "فتح التفاعل الوهمي": ("fake_interact", False),
+            "قفل الالعاب": ("games_lock", True), "فتح الالعاب": ("games_lock", False),
+            "قفل الفويس": ("voices_lock", True), "فتح الفويس": ("voices_lock", False),
+            "قفل الاشعارات": ("notifs_lock", True), "فتح الاشعارات": ("notifs_lock", False)
         }
         if text_clean in locks_map:
             if user_lvl < 3:
-                await message.reply_text("⚠️ عذراً، هذا الأمر يتطلب رتبة **مدير** أو أعلى للتحكم بالحماية!")
+                await message.reply_text("⚠️ عذراً، هذا الأمر يتطلب رتبة **مدير** أو أعلى للتحكم بالحماية الشاملة!")
                 return
             l_key, l_status = locks_map[text_clean]
             set_lock(chat.id, l_key, l_status)
             action_word = "قفل" if l_status else "فتح"
-            await message.reply_text(f"🔒 **تم {action_word} ({l_key}) بنجاح تام في المجموعة.**\n• بواسطة: {user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"🔒 **تم {action_word} ({l_key}) بنجاح تام في المجموعة عبر حماية سورس اندريس.**\n• بواسطة: {user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         # =====================================================================
@@ -506,12 +628,12 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f_key, f_status = features_map[text_clean]
             set_feature_status(chat.id, f_key, f_status)
             status_word = "تفعيل" if f_status else "تعطيل"
-            await message.reply_text(f"⚙️ **تم {status_word} النظام بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"⚙️ **تم {status_word} النظام بنجاح عبر سورس اندريس.**\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean in ["قائمة التفعيلات", "عرض التفعيلات"]:
             await message.reply_text(
-                f"⚙️ **قائمة التفعيلات والتعطيل الشاملة في الكروب:**\n\n"
+                f"⚙️ **قائمة التفعيلات والتعطيل الشاملة في الكروب (سورس اندريس):**\n\n"
                 f"• الترحيب: مفعل ✅\n• الردود: مفعل ✅\n• الألعاب: مفعل ✅\n• التحذيرات: مفعل ✅\n• الإشعارات: مفعلة ✅\n• الايديات: مفعل ✅\n"
                 f"• الروابط التلقائية: مفعل ✅\n• صانع البوتات: مفعل ✅\n• الحماية العامة: مفعلة 🛡️\n"
                 f"• حقوق السورس: @{DEV_USERNAME}"
@@ -545,7 +667,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             set_user_role(target_user.id, role_code)
             await message.reply_text(
-                f"✅ **تمت ترقية العضو بنجاح تام لتصل إلى المطور الأساسي @{DEV_USERNAME}!**\n"
+                f"✅ **تمت ترقية العضو بنجاح تام عبر سورس اندريس لتصل للمطور الأساسي @{DEV_USERNAME}!**\n"
                 f"👤 العضو: {target_user.first_name}\n"
                 f"🏷️ الرتبة الجديدة: **{role_name}**\n"
                 f"• بواسطة: {user.first_name}\n"
@@ -563,7 +685,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "نزلني":
             if user_lvl >= 6:
-                await message.reply_text("⚠️ لا يمكنك تنزيل رتبتك لأنك مطور أساسي في السورس!")
+                await message.reply_text("⚠️ لا يمكنك تنزيل رتبتك لأنك مطور أساسي في سورس اندريس!")
                 return
             remove_user_role(user.id)
             await message.reply_text(f"🔻 **تم تنزيل رتبتك وأصبحت عضواً عادياً في الكروب:** {user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
@@ -603,7 +725,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # --- التاك الجماعي ---
         # =====================================================================
         if text_clean == "تاك للكل" and user_lvl >= 2:
-            await message.reply_text(f"📢 **تنبيه عام وتصعيد لجميع الأعضاء بواسطة المشرف {user.first_name}:**\n@all يرجى التفاعل والمشاركة المستمرة في المجموعة الكريمة!\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"📢 **تنبيه عام وتصعيد لجميع الأعضاء بواسطة المشرف {user.first_name} (سورس اندريس):**\n@all يرجى التفاعل والمشاركة المستمرة في المجموعة!\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "تاك مشرفين" and user_lvl >= 2:
@@ -616,7 +738,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text_clean in ["الايدي", "ايدي", "id"]:
             photos = await context.bot.get_user_profile_photos(target_user.id, limit=1)
             id_text = (
-                f"🪪 **معلومات الملف الشخصي:**\n"
+                f"🪪 **معلومات الملف الشخصي (سورس اندريس):**\n"
                 f"• الاسم: {target_user.first_name}\n"
                 f"• المعرف: @{target_user.username if target_user.username else 'لا يوجد'}\n"
                 f"• الأيدي (ID): `{target_user.id}`\n"
@@ -631,43 +753,53 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # =====================================================================
-        # --- قسم الألعاب والمسابقات الضخم والجديد (أكثر من 12 لعبة تشغيلية كاملة) ---
+        # --- قسم الألعاب والمسابقات الموسع (20 لعبة تشغيلية كاملة) ---
         # =====================================================================
         games_dict = {
             "لعبة النسبة": f"🎲 **نسبة توافق وتفاعل {target_user.first_name} في الكروب:** {random.randint(40, 100)}% 🔥",
             "نسبة الحب": f"❤️ **نسبة الحب والتوافق بين العضوين:** {random.randint(50, 100)}% 💞",
             "لعبة الصراحة": f"🎯 **سؤال صراحة:** هل تخفي سراً عن صديقك المقرب؟ صرح الآن بدون خجل! 🤭",
             "لعبة المانجا": f"📖 **تحدي الأنمي والمانجا:** من هو الشخصية الأقوى في سلسلة ناروتو برأيك؟ 🍥",
-            "لعبة التحدي": f"⚔️ **تحدي السورس:** قم بإرسال 5 رسائل متتالية بأسرع ما يمكن لتثبت نشاطك الخارق! 🚀",
+            "لعبة التحدي": f"⚔️ **تحدي سورس اندريس:** قم بإرسال 5 رسائل متتالية بأسرع ما يمكن لتثبت نشاطك الخارق! 🚀",
             "لعبة الحروف": f"🔤 **لعبة الحروف السريعة:** اذكر اسماً بحرف **({random.choice(['أ', 'م', 'س', 'ر', 'ع', 'خ', 'ل'])})** بأسرع وقت! ⏱️",
             "لعبة الذكاء": f"🧠 **سؤال ذكاء:** ما هو الشيء الذي يكلمك بدون لسان ويسمعك بدون أذنين؟ (الكتاب) 📚",
-            "لعبة التخمين": f"🔮 **لعبة الحظ:** الرقم المحظوظ لديلو اليوم هو: **{random.randint(1, 100)}** 🌟",
+            "لعبة التخمين": f"🔮 **لعبة الحظ:** الرقم المحظوظ لديك اليوم هو: **{random.randint(1, 100)}** 🌟",
             "لعبة الموت": f"⚡ **لعبة المغامرة:** من سيفوز بالمعركة الكبرى في الكروب اليوم؟ بالتأكيد أنت يا أسطورة!",
             "لعبة من أنا": f"🕵️‍♂️ **من أنا:** أنا شيء يحيط بالغرفة كلها ولكنه لا يأخذ أي مساحة، فما أنا؟ (الجدار) 🧱",
             "لعبة المليون": f"💰 **سؤال من سيربح المليون:** ما هي عاصمة دولة العراق؟ (بغداد العزة) 🏛️",
-            "لعبة الألوان": f"🎨 **لعبة الألوان:** اختر لونك المفضل وسنخبرك بصفة شخصيتك: الأزرق يعني الهدوء والثقة 🌊"
+            "لعبة الألوان": f"🎨 **لعبة الألوان:** اختر لونك المفضل وسنخبرك بصفة شخصيتك: الأزرق يعني الهدوء والثقة 🌊",
+            "لعبة الزحف": f"🐍 **لعبة الزحف:** {target_user.first_name} يحاول الزحف للوصول إلى المركز الأول في الكروب! 😂",
+            "لعبة الحظ الكبرى": f"🎰 **دولاب الحظ:** لقد ربحت معنا **{random.randint(10, 500)}** نقطة تفاعل ذهبية! ✨",
+            "لعبة المطبخ": f"🍳 **لعبة الطبخ:** الأكلة المقترحة لعشائك اليوم هي دجاج مشوي مع صوص الشواء 🍗",
+            "لعبة السيارات": f"🏎️ **لعبة السيارات السريعة:** سيارتك المفضلة المستقبلية هي سيارة رياضية خارقة بقوة 800 حصان! 🏁",
+            "لعبة الأبراج": f"🔮 **براجك اليوم:** الحظ يبتسم لك اليوم وعليك استغلال الفرص القادمة بقوة 🌟",
+            "لعبة الكراسي": f"🪑 **لعبة الكراسي الموسيقية:** الموسيقى توقفت وتمكن {target_user.first_name} من حجز الكرسي الأخير بنجاح! 👑",
+            "لعبة القط والفأر": f}🐱 **لعبة القط والفأر:** أنت الآن بدور القط الماهر، هل ستتمكن من الإمساك بالفأر الهارب؟ 🏃‍♂️",
+            "لعبة الملوك": f"👑 **لعبة العرش:** تم تتويج {target_user.first_name} ملكاً متفرداً على عرش الكروب اليوم! 💎"
         }
         
         if text_clean in games_dict:
-            await message.reply_text(f"{games_dict[text_clean]}\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"{games_dict[text_clean]}\n• سورس اندريس: @{DEV_USERNAME}")
             return
 
         if text_clean in ["نكتة", "نكت"]:
             jokes = [
                 "محشش سألوه: شو رأيك بالزواج المبكر؟ قال: يعني الساعة 7 الصبح؟ 😂",
                 "واحد غبي ضاع تلفونه، صار يبكي، صاحبه قله: لا تبكي اتصل عليه من تلفونك الثاني وشوف وين رايح! قال: تصدق فكرة حلوة! 🤦‍♂️",
-                "محشش دخل صيدلية قالهم: عندكم قطرة عيون وسعيدة؟ قالوا: لا والله! قال: خسارة فاتتني الحفلة 😂"
+                "محشش دخل صيدلية قالهم: عندكم قطرة عيون وسعيدة؟ قالوا: لا والله! قال: خسارة فاتتني الحفلة 😂",
+                "واحد أحول سألوه: شو أمنيتك بالحياة؟ قال: أشوف اثنين ماشيين لحالهم! 😆"
             ]
-            await message.reply_text(f"😂 **نكتة اليوم من السورس:**\n\n{random.choice(jokes)}\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"😂 **نكتة اليوم من سورس اندريس:**\n\n{random.choice(jokes)}\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean in ["حكمة", "حكمة اليوم"]:
             wisdoms = [
                 "من أراد النجاح في هذا العالم عليه أن يتجاهل كلام المحبطين.",
                 "الصمت هو أفضل رد على السخافات.",
-                "الجمال في العقول لا في المظاهر."
+                "الجمال في العقول لا في المظاهر، وسورس اندريس يثبت ذلك.",
+                "الاصدقاء الحقيقيون هم من يقفون معك في أوقات الصعاب."
             ]
-            await message.reply_text(f"💡 **حكمة السورس:**\n\n{random.choice(wisdoms)}\n• حقوق السورس: @{DEV_USERNAME}")
+            await message.reply_text(f"💡 **حكمة سورس اندريس:**\n\n{random.choice(wisdoms)}\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         # =====================================================================
@@ -683,11 +815,11 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if text_clean == "انذار" and user_lvl >= 2 and reply:
-            await message.reply_text(f"⚠️ **تنبيه إداري رسمي موجه إلى العضو:** {target_user.mention_html()},\nيرجى الالتزام بقوانين وقواعد الكروب!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="HTML")
+            await message.reply_text(f"⚠️ **تنبيه إداري رسمي موجه إلى العضو:** {target_user.mention_html()},\nيرجى الالتزام بقوانين وقواعد الكروب!\n• سورس اندريس: @{DEV_USERNAME}", parse_mode="HTML")
             return
 
         if text_clean == "صلاحياتي":
-            await message.reply_text(f"🛡️ **رتبتك الحالية في السورس:** {role_title}\n• مستوى الصلاحية (Level): `{user_lvl}`\n• المطور الأساسي: @{DEV_USERNAME}")
+            await message.reply_text(f"🛡️ **رتبتك الحالية في سورس اندريس:** {role_title}\n• مستوى الصلاحية (Level): `{user_lvl}`\n• المطور الأساسي: @{DEV_USERNAME}")
             return
 
         if text_clean == "كتم" and user_lvl >= 2 and reply:
@@ -716,14 +848,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # =====================================================================
         if text_clean in ["الاوامر", "الأوامر", "اوامر"]:
             commands_main_text = (
-                f"• اليك اوامر بوتات السورس 5.3 (مربوطة حصرياً بالمطور الأساسي @{DEV_USERNAME}) .\n\n"
-                "• ( م 1 ) ↬ اوامر الحمايه والقفل والفتح الشاملة (روابط، فحش، ملفات، جهات)\n"
+                f"• اليك اوامر سورس اندريس (Andress 6.0) المربوطة حصرياً بالمطور الأساسي @{DEV_USERNAME} .\n\n"
+                "• ( م 1 ) ↬ اوامر الحمايه والقفل والفتح الشاملة المتقدمة (روابط، فحش، ملفات، تفاعل وهمي)\n"
                 "• ( م 2 ) ↬ اوامر المشرفين وإدارة الرتب والرفع والتنزيل (من العضو إلى المطور الأساسي)\n"
-                "• ( م 3 ) ↬ اوامر التفعيلات والتعطيل الشاملة\n"
-                "• ( م 4 ) ↬ اوامر المسح والتنظيف والترند\n"
-                "• ( م 5 ) ↬ اوامر المطورين والتحكم والربط\n"
-                "• ( م 6 ) ↬ اوامر الترفيه والألعاب والمسابقات (أكثر من 12 لعبة نشطة)\n"
-                "• ( م 7 ) ↬ الأوامر الإضافية المبتكرة (نكت، حكم، سرعة البوت)"
+                "• ( م 3 ) ↬ اوامر التفعيلات والتعطيل الشاملة وأوامر (تعيين ترحيب / وضع ترحيب)\n"
+                "• ( م 4 ) ↬ اوامر المسح والتنظيف والترند الشخصي\n"
+                "• ( م 5 ) ↬ اوامر المطورين وتعديل اسم البوت (تعيين اسم البوت / وضع اسم البوت)\n"
+                "• ( م 6 ) ↬ اوامر الترفيه والألعاب والمسابقات (أكثر من 20 لعبة نشطة)\n"
+                "• ( م 7 ) ↬ الأوامر الإضافية المبتكرة (نكت، حكم، سرعة البوت، وتفاعل 'بوت')"
             )
             await message.reply_text(commands_main_text, reply_markup=get_main_commands_menu())
             return
@@ -740,8 +872,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "back_to_start":
         await query.edit_message_text(
-            f"✨ **أهلاً بك عزيزي في بوت المصنع والسورس المطور الشامل (5.3)** 🤖\n\n"
-            f"• أقوى بوت لإدارة المجموعات وصناعة البوتات التلقائية.\n"
+            f"✨ **أهلاً بك عزيزي في سورس اندريس (Andress Source 6.0)** 🤖\n\n"
+            f"• أقوى سورس وبوت تليجرام لإدارة المجموعات وصناعة البوتات التلقائية بكفاءة فائقة.\n"
             f"• المطور الأساسي: @{DEV_USERNAME}\n"
             f"• قناة السورس الرسمية: {CHANNEL_USERNAME}\n\n"
             f"اختر أحد الخيارات بالأسفل للبدء بالتحكم أو صناعة بوتك الخاص:",
@@ -751,10 +883,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "factory_main":
         await query.edit_message_text(
-            f"🛠️ **قسم مصنع البوتات البرمجية التلقائية:**\n\n"
+            f"🛠️ **قسم مصنع البوتات البرمجية التلقائية (سورس اندريس):**\n\n"
             f"• يمكنك الآن إنشاء بوتك الخاص مجاناً أو ترقيته إلى النسخة المدفوعة VIP.\n"
             f"• يتم ربط البوت مباشرة بقاعدة البيانات وتشغيله فوراً.\n"
-            f"• حقوق المطور: @{DEV_USERNAME}",
+            f"• حقوق المطور الأساسي: @{DEV_USERNAME}",
             reply_markup=get_factory_menu()
         )
         return
@@ -762,9 +894,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "make_free_bot":
         context.user_state = "waiting_for_free_token"
         await query.edit_message_text(
-            f"🤖 **إنشاء بوت مجاني (Free Bot):**\n\n"
+            f"🤖 **إنشاء بوت مجاني (Free Bot) عبر سورس اندريس:**\n\n"
             f"• أرسل الآن **توكن البوت (Bot Token)** الخاص بك الذي استخرجته من `@BotFather`:\n"
-            f"• (ملاحظة: البوت المجاني يأتي بحماية أساسية كاملة).\n"
+            f"• (ملاحظة: البوت المجاني يأتي بحماية أساسية كاملة وتخصيص بالاسم).\n"
             f"• حقوق المطور: @{DEV_USERNAME}"
         )
         return
@@ -772,9 +904,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "make_paid_bot":
         context.user_state = "waiting_for_paid_token"
         await query.edit_message_text(
-            f"💎 **إنشاء بوت مدفوع VIP (Paid Bot):**\n\n"
+            f"💎 **إنشاء بوت مدفوع VIP (Paid Bot) عبر سورس اندريس:**\n\n"
             f"• أرسل الآن **توكن البوت المدفوع (Bot Token)** الخاص بك:\n"
-            f"• (البوت المدفوع يمنحك مميزات خارقة، سرعة قصوى، بدون إعلانات، وصلاحيات كاملة).\n"
+            f"• (البوت المدفوع يمنحك مميزات خارقة، سرعة قصوى، بدون إعلانات، وصلاحيات كاملة بالأسماء).\n"
             f"• حقوق المطور: @{DEV_USERNAME}"
         )
         return
@@ -782,14 +914,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "manage_my_bots":
         conn = sqlite3.connect("bot_database.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT bot_type, bot_username, created_at FROM made_bots WHERE owner_id = ?", (user.id,))
+        cursor.execute("SELECT bot_type, bot_username, custom_bot_display_name, created_at FROM made_bots WHERE owner_id = ?", (user.id,))
         row = cursor.fetchone()
         conn.close()
 
         if row:
-            b_type, b_user, b_date = row
+            b_type, b_user, b_display_name, b_date = row
             info_text = (
-                f"📊 **إدارة بوتاتك المصنوعة:**\n\n"
+                f"📊 **إدارة بوتاتك المصنوعة (سورس اندريس):**\n\n"
+                f"• اسم البوت: **{b_display_name}**\n"
                 f"• معرف البوت: `{b_user}`\n"
                 f"• نوع الاستضافة: **{b_type}**\n"
                 f"• تاريخ الإنشاء: `{b_date}`\n"
@@ -804,20 +937,20 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "back_to_main_cmds":
         commands_main_text = (
-            f"• اليك اوامر بوتات السورس 5.3 (مربوطة حصرياً بالمطور الأساسي @{DEV_USERNAME}) .\n\n"
-            "• ( م 1 ) ↬ اوامر الحمايه والقفل والفتح الشاملة (روابط، فحش، ملفات، جهات)\n"
+            f"• اليك اوامر سورس اندريس (Andress 6.0) المربوطة حصرياً بالمطور الأساسي @{DEV_USERNAME} .\n\n"
+            "• ( م 1 ) ↬ اوامر الحمايه والقفل والفتح الشاملة المتقدمة (روابط، فحش، ملفات، تفاعل وهمي)\n"
             "• ( م 2 ) ↬ اوامر المشرفين وإدارة الرتب والرفع والتنزيل (من العضو إلى المطور الأساسي)\n"
-            "• ( م 3 ) ↬ اوامر التفعيلات والتعطيل الشاملة\n"
-            "• ( م 4 ) ↬ اوامر المسح والتنظيف والترند\n"
-            "• ( م 5 ) ↬ اوامر المطورين والتحكم والربط\n"
-            "• ( م 6 ) ↬ اوامر الترفيه والألعاب والمسابقات (أكثر من 12 لعبة نشطة)\n"
-            "• ( م 7 ) ↬ الأوامر الإضافية المبتكرة (نكت، حكم، سرعة البوت)"
+            "• ( م 3 ) ↬ اوامر التفعيلات والتعطيل الشاملة وأوامر (تعيين ترحيب / وضع ترحيب)\n"
+            "• ( م 4 ) ↬ اوامر المسح والتنظيف والترند الشخصي\n"
+            "• ( م 5 ) ↬ اوامر المطورين وتعديل اسم البوت (تعيين اسم البوت / وضع اسم البوت)\n"
+            "• ( م 6 ) ↬ اوامر الترفيه والألعاب والمسابقات (أكثر من 20 لعبة نشطة)\n"
+            "• ( م 7 ) ↬ الأوامر الإضافية المبتكرة (نكت، حكم، سرعة البوت، وتفاعل 'بوت')"
         )
         await query.edit_message_text(text=commands_main_text, reply_markup=get_main_commands_menu())
         return
 
     elif data == "menu_page1":
-        await query.edit_message_text(text=f"🛡️ **أوامر الحماية والقفل والفتح الشاملة (م 1):**\n• قفل وفتح: (الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركة، البوتات المتحركة، التثبيت، التغيير، الدردشة، الكلايش، التكرار السريع، الفحش، الجهات، الملفات، الصوتيات، البصمات، الكوبونات، التاك الجماعي).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🛡️ **أوامر الحماية والقفل والفتح الشاملة المتقدمة (م 1):**\n• قفل وفتح: (الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركة، البوتات المتحركة، التثبيت، التغيير، الدردشة، الكلايش، التكرار السريع، الفحش، الجهات، الملفات، الصوتيات، البصمات، الكوبونات، التاك الجماعي، التفاعل الوهمي، الالعاب، الفويس، الاشعارات).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page2":
         admin_menu_text = (
@@ -832,19 +965,19 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text=admin_menu_text, reply_markup=get_admins_menu_keyboard())
         return
     elif data == "menu_page3":
-        await query.edit_message_text(text=f"⚙️ **أوامر التفعيلات والتعطيل الشاملة (م 3):**\n• تفعيل / تعطيل: (الترحيب، الردود، الالعاب، التحذيرات، الإشعارات، الايديات، الروابط التلقائية، صانع البوتات، الردود التلقائية، التنبيهات الذكية، التقييم التلقائي).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"⚙️ **أوامر التفعيلات والتعطيل والترحيب (م 3):**\n• تفعيل / تعطيل: (الترحيب، الردود، الالعاب، التحذيرات، الإشعارات، الايديات، الروابط التلقائية، صانع البوتات، الردود التلقائية، التنبيهات الذكية، التقييم التلقائي).\n• أوامر الترحيب: (تعيين ترحيب [النص] / وضع ترحيب [النص] / عرض الترحيب).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page4":
         await query.edit_message_text(text=f"🗑️ **أوامر المسح والتنظيف والترند (م 4):**\n• مسح المكتوب والرسائل، مسح الردود والأوامر، وتصفير إحصائيات الترند الشخصي.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page5":
-        await query.edit_message_text(text=f"💻 **أوامر المطورين والتحكم والربط (م 5):**\n• التحكم الشامل بالسورس وإدارة قواعد البيانات SQL وأوامر الصيانة والربط للمطور الأساسي @{DEV_USERNAME}.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"💻 **أوامر المطورين وتعديل الأسماء (م 5):**\n• التحكم الشامل بسورس اندريس وإدارة قواعد البيانات SQL.\n• أوامر تغيير اسم البوت: (تعيين اسم البوت [الاسم] / وضع اسم البوت [الاسم] / اسم البوت).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page6":
-        await query.edit_message_text(text=f"🎮 **أوامر الترفيه والألعاب والمسابقات (م 6):**\n• لعبة النسبة، نسبة الحب، لعبة الصراحة، لعبة المانجا، لعبة التحدي، لعبة الحروف، لعبة الذكاء، لعبة التخمين، لعبة الموت، لعبة من أنا، لعبة المليون، لعبة الألوان، نكت، وحكم اليوم.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🎮 **أوامر الترفيه والألعاب والمسابقات (م 6):**\n• أكثر من 20 لعبة مدمجة: (لعبة النسبة، نسبة الحب، الصراحة، المانجا، التحدي، الحروف، الذكاء، التخمين، الموت، من أنا، المليون، الألوان، الزحف، دولاب الحظ، المطبخ، السيارات، الأبراج، الكراسي، القط والفأر، العرش)، إضافة إلى النكت والحكم اليومية.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page7":
-        await query.edit_message_text(text=f"✨ **الأوامر الإضافية المبتكرة (م 7):**\n• نكت، حكم اليوم، قياس سرعة البوت (البنج)، وترتيب الأوامر الاحترافي.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"✨ **الأوامر الإضافية المبتكرة (م 7):**\n• الرد التلقائي بكلمة 'بوت' ليعلن أنه سورس اندريس، نكت، حكم اليوم، قياس سرعة البوت (البنج)، وترتيب الأوامر الاحترافي.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
 
 # =====================================================================
