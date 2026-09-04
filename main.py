@@ -4,15 +4,15 @@ import sqlite3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
-# إعداد التسجيل والأخطاء
+# إعداد التسجيل
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# --- إعدادات البوت والحقوق الأساسية ---
+# --- إعدادات البوت والحقوق ---
 TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
-DEV_USERNAME = "odox3"       # ◄--- حقوقك واسم معرفك هنا
+DEV_USERNAME = "odox3"       # ◄--- حقوقك واسم معرفك الأساسي
 CHANNEL_USERNAME = "@odox6"
 
 # --- تهيئة قواعد البيانات (SQLite) ---
@@ -22,7 +22,6 @@ def init_db():
     cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT, full_name TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS roles (user_id INTEGER PRIMARY KEY, role TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS active_groups (chat_id INTEGER PRIMARY KEY, chat_title TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS user_bots (user_id INTEGER, bot_token TEXT, bot_type TEXT)")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_stats (
             user_id INTEGER PRIMARY KEY,
@@ -39,14 +38,6 @@ def init_db():
             feature_key TEXT,
             is_enabled INTEGER DEFAULT 1,
             PRIMARY KEY (chat_id, feature_key)
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS custom_replies (
-            chat_id INTEGER,
-            keyword TEXT,
-            reply_text TEXT,
-            PRIMARY KEY (chat_id, keyword)
         )
     """)
     conn.commit()
@@ -115,7 +106,7 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
-# --- واجهات الأزرار التفاعلية (Inline Keyboards) ---
+# --- قوائم الأوامر والأزرار التفاعلية ---
 def get_main_commands_menu():
     keyboard = [
         [InlineKeyboardButton("• 1 .", callback_data="menu_page1"), InlineKeyboardButton("• 2 .", callback_data="menu_page2")],
@@ -136,7 +127,7 @@ def get_admins_menu_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- معالج رسائل وأوامر السورس الشاملة ---
+# --- معالج الرسائل والأوامر البرمجية الشاملة ---
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -171,9 +162,25 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         reply = message.reply_to_message
         target_user = reply.from_user if reply else user
+        target_role = get_user_role(target_user.id, target_user.username)
         is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title or "مدير" in role_title or "ادمن" in role_title
 
-        # --- تنفيذ أوامر المشرفين والأوامر بالكامل دون استثناء ---
+        # --- تنفيذ أوامر رفع وخفض الرتب بدقة (لكي لا يظل الشخص عضواً عند منحه رتبة) ---
+        if text_clean.startswith("رفع ادمن") and is_elevated and reply:
+            set_user_role(target_user.id, "admin")
+            await message.reply_text(f"🛡️ **تم رفع العضو بنجاح ليصبح:** ادمن 🛡️\n👤 العضو: {target_user.first_name}")
+            return
+
+        if text_clean.startswith("رفع مدير") and is_elevated and reply:
+            set_user_role(target_user.id, "manager")
+            await message.reply_text(f"⚙️ **تم رفع العضو بنجاح ليصبح:** مدير ⚙️\n👤 العضو: {target_user.first_name}")
+            return
+
+        if text_clean.startswith("رفع منشئ") and is_elevated and reply:
+            set_user_role(target_user.id, "creator")
+            await message.reply_text(f"🛠️ **تم رفع العضو بنجاح ليصبح:** منشئ 🛠️\n👤 العضو: {target_user.first_name}")
+            return
+
         if text_clean == "نزلني":
             remove_user_role(user.id)
             await message.reply_text(f"🔻 **تم تنزيل رتبتك وأصبحت عضواً عادياً:** {user.first_name}")
@@ -204,6 +211,33 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text(f"⚙️ **لوحة إعدادات المجموعة الحالية (حقوق المطور @{DEV_USERNAME}):**\n• الحماية العامة: مفعلة\n• الردود التلقائية: مفعلة\n• منع الروابط: مفعل")
             return
 
+        # --- أامر الأيدي بالصورة (مع تفاصيل الرتبة) ---
+        if text_clean in ["الايدي", "ايدي", "id", "تعيين الايدي"]:
+            photos = await context.bot.get_user_profile_photos(target_user.id, limit=1)
+            id_text = (
+                f"🪪 **معلومات الملف الشخصي (الأيدي):**\n"
+                f"• الاسم: {target_user.first_name}\n"
+                f"• المعرف: @{target_user.username if target_user.username else 'لا يوجد'}\n"
+                f"• الأيدي: `{target_user.id}`\n"
+                f"• الرتبة: {target_role}\n"
+                f"• المطور الأساسي: @{DEV_USERNAME}"
+            )
+            if photos.total_count > 0:
+                photo_file_id = photos.photos[0][-1].file_id
+                await message.reply_photo(photo=photo_file_id, caption=id_text)
+            else:
+                await message.reply_text(id_text)
+            return
+
+        # --- أوامر الألعاب والترفيه المتكاملة (م 6) ---
+        if text_clean in ["لعبة النسبة", "نسبة الحب", "نسبة"]:
+            await message.reply_text(f"🎲 **لعبة النسبة:**\nنسبة توافق وتفاعل {target_user.first_name} في الكروب هي: **94%** 🔥")
+            return
+
+        if text_clean in ["مشن", "حزر", "تخمين"]:
+            await message.reply_text("🎮 **لعبة الحزورات والذكاء:**\nما هو الشيء الذي أكل نصفه وبقي نصفه الآخر؟\n(أرسل الإجابة في الكروب لتفوز بنقاط الترند!)")
+            return
+
         if text_clean == "القوائم":
             await message.reply_text("📋 **قوائم إدارة الكروب والتنظيم:**\n• قائمة الأوامر العامة\n• قائمة الحظر والكتم\n• قائمة الردود والتفاعلات")
             return
@@ -230,10 +264,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "صلاحياتي":
             await message.reply_text(f"🛡️ **رتبتك الحالية في السورس هي:** {role_title}")
-            return
-
-        if text_clean in ["الايدي", "ايدي", "id", "تعيين الايدي"]:
-            await message.reply_text(f"👤 **ايديك:** `{target_user.id}`\n👑 **رتبتك:** {role_title}\n💻 **المطور:** @{DEV_USERNAME}")
             return
 
         if text_clean == "كتم" and is_elevated and reply:
@@ -268,7 +298,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "• ( م 3 ) ↬ اوامر التفعيلات\n"
                 "• ( م 4 ) ↬ اوامر المسح\n"
                 "• ( م 5 ) ↬ اوامر المطورين\n"
-                "• ( م 6 ) ↬ اوامر الترفيه"
+                "• ( م 6 ) ↬ اوامر الترفيه والألعاب"
             )
             await message.reply_text(commands_main_text, reply_markup=get_main_commands_menu())
             return
@@ -287,7 +317,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• ( م 3 ) ↬ اوامر التفعيلات\n"
             "• ( م 4 ) ↬ اوامر المسح\n"
             "• ( م 5 ) ↬ اوامر المطورين\n"
-            "• ( م 6 ) ↬ اوامر الترفيه"
+            "• ( م 6 ) ↬ اوامر الترفيه والألعاب"
         )
         await query.edit_message_text(text=commands_main_text, reply_markup=get_main_commands_menu())
         return
@@ -319,10 +349,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"💻 **أوامر المطورين (المطور الأساسي: @{DEV_USERNAME}):**\n• التحكم الشامل بالسورس وربط البوتات.", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page6":
-        await query.edit_message_text(text="🎮 **أوامر الترفيه:**\n• الألعاب والمسابقات والنسب وتفاعل الكروب.", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text="🎮 **أوامر الترفيه والألعاب (م 6):**\n• نسبة الحب، حزورات، مسابقات، وألعاب الكروب.", reply_markup=get_sub_back_keyboard())
         return
 
-# --- تشغيل البوت عبر الويب هوك (Webhooks) ---
+# --- تشغيل البوت عبر الويب هوك ---
 def main():
     init_db()
     application = Application.builder().token(TOKEN).build()
