@@ -10,7 +10,7 @@ except RuntimeError:
 
 API_ID = 36216701
 API_HASH = "f95bac8547d34e32dd37ec3cdbe28558"
-BOT_TOKEN = "8704690798:AAEShhQ2o0qFuy6UwHbVGwQ-aAVlcA8FI_w"
+BOT_TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
 
 app = Client(
     "SourceTPBot",
@@ -19,7 +19,6 @@ app = Client(
     bot_token=BOT_TOKEN
 )
 
-# النصوص الرئيسية والقوائم باللغة العربية بالكامل
 MAIN_TEXT = (
     "Tb\n"
     "الاوامر\n\n"
@@ -41,7 +40,6 @@ MAIN_KEYBOARD = InlineKeyboardMarkup([
 
 @app.on_message(filters.command(["start", "الاوامر", "البداية"]))
 async def start_command(client, message):
-    # رسالة /start المخصصة بالمظهر العربي الكامل
     start_text = (
         "Tb\n"
         "/start\n\n"
@@ -63,7 +61,6 @@ async def start_command(client, message):
 async def callback_handler(client, callback_query: CallbackQuery):
     data = callback_query.data
     
-    # م 1: أوامر الحماية
     if data == "sec_1":
         text = (
             "Tb\n"
@@ -94,7 +91,6 @@ async def callback_handler(client, callback_query: CallbackQuery):
         ])
         await callback_query.message.edit_text(text, reply_markup=keyboard)
 
-    # م 2: أوامر المشرفين
     elif data == "sec_2":
         text = (
             "Tb\n"
@@ -132,7 +128,6 @@ async def callback_handler(client, callback_query: CallbackQuery):
         ])
         await callback_query.message.edit_text(text, reply_markup=keyboard)
 
-    # م 3: أوامر التفعيلات
     elif data == "sec_3":
         text = (
             "Tb\n"
@@ -163,7 +158,6 @@ async def callback_handler(client, callback_query: CallbackQuery):
         ])
         await callback_query.message.edit_text(text, reply_markup=keyboard)
 
-    # م 4: أوامر المسح والرفع
     elif data == "sec_4":
         text = (
             "Tb\n"
@@ -200,7 +194,6 @@ async def callback_handler(client, callback_query: CallbackQuery):
         ])
         await callback_query.message.edit_text(text, reply_markup=keyboard)
 
-    # م 5: أوامر مسح المشرفين
     elif data == "sec_5":
         text = (
             "Tb\n"
@@ -231,7 +224,6 @@ async def callback_handler(client, callback_query: CallbackQuery):
         ])
         await callback_query.message.edit_text(text, reply_markup=keyboard)
 
-    # م 6: أوامر الترفيه
     elif data == "sec_6":
         text = (
             "Tb\n"
@@ -274,7 +266,6 @@ async def callback_handler(client, callback_query: CallbackQuery):
         ])
         await callback_query.message.edit_text(text, reply_markup=keyboard)
 
-    # العودة للقائمة الرئيسية
     elif data == "back_home":
         await callback_query.message.edit_text(MAIN_TEXT, reply_markup=MAIN_KEYBOARD)
 
