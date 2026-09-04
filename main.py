@@ -1,5 +1,5 @@
 # ==============================================================================
-# سورس تي بي (Tb) الأسطوري المطور - النسخة العملاقة والمتكاملة 7.0 (2026)
+# سورس تي بي (Tb) الأسطوري - النسخة العملاقة والمطابقة لسورسات الموسوي 8.0 (2026)
 # ==============================================================================
 
 import os
@@ -31,10 +31,10 @@ DEV_USERNAME = "odox3"
 DEV_ID = 8297163405
 
 # ------------------------------------------------------------------------------
-# قاعدة البيانات الشاملة لإدارة المجموعات، الحماية، السيرفرات، والأعضاء
+# قاعدة البيانات الشاملة والموسعة (Tb Database v8.0)
 # ------------------------------------------------------------------------------
 def init_tb_database():
-    conn = sqlite3.connect("tb_source_ultra_mega.db", check_same_thread=False)
+    conn = sqlite3.connect("tb_source_musawi_pro.db", check_same_thread=False)
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -42,8 +42,8 @@ def init_tb_database():
             user_id INTEGER PRIMARY KEY,
             username TEXT,
             full_name TEXT,
-            balance INTEGER DEFAULT 15000,
-            bank_balance INTEGER DEFAULT 100000,
+            balance INTEGER DEFAULT 25000,
+            bank_balance INTEGER DEFAULT 200000,
             xp INTEGER DEFAULT 0,
             level INTEGER DEFAULT 1,
             rank_title TEXT DEFAULT 'مطور أساسي'
@@ -72,7 +72,9 @@ def init_tb_database():
             lock_english INTEGER DEFAULT 0,
             lock_badwords INTEGER DEFAULT 1,
             lock_reply INTEGER DEFAULT 0,
-            lock_inline INTEGER DEFAULT 1
+            lock_inline INTEGER DEFAULT 1,
+            lock_edit INTEGER DEFAULT 0,
+            lock_games INTEGER DEFAULT 0
         )
     """)
     
@@ -82,7 +84,7 @@ def init_tb_database():
 init_tb_database()
 
 # ------------------------------------------------------------------------------
-# محرك الحماية الفائق والحديث (Tb Security V7)
+# محرك حماية المجموعات الخارق (Tb Ultra Security Engine)
 # ------------------------------------------------------------------------------
 async def tb_security_engine(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.effective_chat:
@@ -100,37 +102,37 @@ async def tb_security_engine(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except:
         pass
 
-    conn = sqlite3.connect("tb_source_ultra_mega.db")
+    conn = sqlite3.connect("tb_source_musawi_pro.db")
     cursor = conn.cursor()
     cursor.execute("""
         SELECT lock_links, lock_usernames, lock_spam, lock_chat, lock_forward, 
                lock_photos, lock_videos, lock_stickers, lock_gifs, lock_pin, 
                lock_contacts, lock_files, lock_voice, lock_tag, lock_arabic, 
-               lock_english, lock_badwords, lock_reply, lock_inline
+               lock_english, lock_badwords, lock_reply, lock_inline, lock_edit, lock_games
         FROM tb_group_locks WHERE chat_id = ?
     """, (chat_id,))
     row = cursor.fetchone()
     if not row:
-        locks = (1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1)
+        locks = (1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0)
     else:
         locks = row
     conn.close()
 
-    l_links, l_user, l_spam, l_chat, l_fwd, l_ph, l_vid, l_stk, l_gif, l_pin, l_cont, l_file, l_voi, l_tag, l_arb, l_eng, l_bad, l_rep, l_inl = locks
+    l_links, l_user, l_spam, l_chat, l_fwd, l_ph, l_vid, l_stk, l_gif, l_pin, l_cont, l_file, l_voi, l_tag, l_arb, l_eng, l_bad, l_rep, l_inl, l_ed, l_gam = locks
 
     if l_chat == 1:
         try: await msg.delete()
         except: pass
         return
 
-    if l_links == 1 and any(w in text.lower() for w in ["http://", "https://", "t.me/", "www.", ".com", "joinchat", "t.me/joinchat"]):
+    if l_links == 1 and any(w in text.lower() for w in ["http://", "https://", "t.me/", "www.", ".com", "joinchat", "t.me/joinchat", "telegram.me"]):
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ عذراً [{user.first_name}](tg://user?id={user.id})، ممنوع نشر الروابط!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ عذراً [{user.first_name}](tg://user?id={user.id})، ممنوع نشر الروابط نهائياً!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if l_user == 1 and ("@" in text or "تليكرام" in text):
+    if l_user == 1 and ("@" in text or "تليكرام" in text or "t.me" in text):
         try:
             await msg.delete()
             await msg.reply_text(f"⚠️ ممنوع نشر المعرفات هنا [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
@@ -179,7 +181,7 @@ async def tb_security_engine(update: Update, context: ContextTypes.DEFAULT_TYPE)
         except: pass
         return
 
-    if l_bad == 1 and any(w in text.lower() for w in ["كس", "طيز", "عهر", "فحش", "منيوك", "قندرة"]):
+    if l_bad == 1 and any(w in text.lower() for w in ["كس", "طيز", "عهر", "فحش", "منيوك", "قندرة", "قحبة", "ينكح"]):
         try:
             await msg.delete()
             await msg.reply_text(f"⚠️ ممنوع استخدام الألفاظ النابية [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
@@ -187,7 +189,7 @@ async def tb_security_engine(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
 # ------------------------------------------------------------------------------
-# الأوامر المتقدمة، الإدارة، والكلوشات الخاصة بسورس تي بي (Tb)
+# الأوامر الخدمية، الإدارية، وإدارة الحظر والكتم الشاملة
 # ------------------------------------------------------------------------------
 async def tb_profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -201,7 +203,7 @@ async def tb_pin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await update.message.reply_to_message.pin()
         chat_id = update.effective_chat.id
-        conn = sqlite3.connect("tb_source_ultra_mega.db")
+        conn = sqlite3.connect("tb_source_musawi_pro.db")
         cursor = conn.cursor()
         cursor.execute("UPDATE tb_group_locks SET lock_pin = 1 WHERE chat_id = ?", (chat_id,))
         conn.commit()
@@ -214,7 +216,7 @@ async def tb_unpin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.unpin_all_chat_messages(update.effective_chat.id)
         chat_id = update.effective_chat.id
-        conn = sqlite3.connect("tb_source_ultra_mega.db")
+        conn = sqlite3.connect("tb_source_musawi_pro.db")
         cursor = conn.cursor()
         cursor.execute("UPDATE tb_group_locks SET lock_pin = 0 WHERE chat_id = ?", (chat_id,))
         conn.commit()
@@ -274,19 +276,19 @@ async def tb_unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ لا يمكنني إلغاء حظر العضو: {e}")
 
 # ------------------------------------------------------------------------------
-# لوحة الأوامر المحدثة بالكامل للإصدار 7.0
+# لوحة أوامر السورس المطابقة لسورسات الموسوي (النسخة المتكاملة)
 # ------------------------------------------------------------------------------
 async def tb_commands_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("🛡️ حماية المجموعات الشاملة (م 1)", callback_data="tb_m1")],
-        [InlineKeyboardButton("👑 المشرفين والرتب المتقدمة (م 2)", callback_data="tb_m2"),
+        [InlineKeyboardButton("🛡️ أوامر الحماية والقفل والفتح (م 1)", callback_data="tb_m1")],
+        [InlineKeyboardButton("👑 المشرفين والرتب والادمنية (م 2)", callback_data="tb_m2"),
          InlineKeyboardButton("⚙️ إعدادات البوت والترحيب (م 3)", callback_data="tb_m3")],
-        [InlineKeyboardButton("🧹 أوامر التنظيف والمسح (م 4)", callback_data="tb_m4"),
+        [InlineKeyboardButton("🧹 المسح والتنظيف الشامل (م 4)", callback_data="tb_m4"),
          InlineKeyboardButton("🛠️ لوحة تحكم المطور الخارق (م 5)", callback_data="tb_m5")],
-        [InlineKeyboardButton("🎮 الألعاب والترتيب المالي (م 6)", callback_data="tb_m6")],
+        [InlineKeyboardButton("🎮 الألعاب والمسابقات والمالية (م 6)", callback_data="tb_m6")],
         [InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data="tb_home")]
     ]
-    text = f"⚙️ **سورس تي بي (Tb) الإصدار 7.0 - لوحة التحكم المركزية:**\n\n• تم تحديث كافة الأوامر والمميزات بنجاح.\n• المطور الأساسي: @{DEV_USERNAME}"
+    text = f"👑 **سورس تي بي (Tb) - نظام الموسوي برو الإصدار 8.0:**\n\n• تم دمج وتفعيل كافة أقسام الأوامر البرمجية بدقة عالية.\n• المطور الأساسي: @{DEV_USERNAME}"
     
     if update.callback_query:
         await update.callback_query.answer()
@@ -301,29 +303,29 @@ async def tb_callbacks_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     back = [[InlineKeyboardButton("🔙 رجوع لقائمة الأوامر", callback_data="tb_back")]]
 
     if data == "tb_m1":
-        msg = f"🛡️ **[ م 1 ] أوامر القفل والفتح المتقدمة:**\n- قفل/فتح: الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركات، التثبيت، الدردشة، الفحش، الجهات، الملفات، الصوتيات، البصمات، الردود، الانلاين.\n• حقوق السورس: @{DEV_USERNAME}"
+        msg = f"🛡️ **[ م 1 ] أوامر القفل والفتح المتقدمة:**\n- قفل/فتح: الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركات، التثبيت، الدردشة، الفحش، الجهات، الملفات، الصوتيات، البصمات، الردود، الانلاين، التعديل.\n• حقوق السورس: @{DEV_USERNAME}"
     elif data == "tb_m2":
-        msg = f"👑 **[ م 2 ] المشرفين والرتب:**\n- رفع مميز، رفع ادمن، رفع مدير، رفع مالك، رفع مطور، تنزيل الكل، قائمة الرتب والمشرفين المعتمدين.\n• حقوق السورس: @{DEV_USERNAME}"
+        msg = f"👑 **[ م 2 ] المشرفين والرتب:**\n- رفع مميز، رفع ادمن، رفع مدير، رفع مالك، رفع مطور أساسي/ثانوي، تنزيل الكل، قائمة الرتب والمشرفين.\n• حقوق السورس: @{DEV_USERNAME}"
     elif data == "tb_m3":
         msg = f"⚙️ **[ م 3 ] التفعيلات والإشعارات:**\n- تفعيل/تعطيل الترحيب، الردود التلقائية، الإشعارات، روابط الانضمام، الحماية الذكية.\n• حقوق السورس: @{DEV_USERNAME}"
     elif data == "tb_m4":
-        msg = f"🧹 **[ م 4 ] المسح والتنظيف الشامل:**\n- مسح الرسائل، تنظيف الصامتين، طرد الحسابات المحذوفة، مسح المكتومين، تنظيف السجل.\n• حقوق السورس: @{DEV_USERNAME}"
+        msg = f"🧹 **[ م 4 ] المسح والتنظيف الشامل:**\n- مسح الرسائل، تنظيف الصامتين، طرد الحسابات المحذوفة، مسح المكتومين، تنظيف السجل بالكامل.\n• حقوق السورس: @{DEV_USERNAME}"
     elif data == "tb_m5":
-        msg = f"🛠️ **[ م 5 ] أوامر المطور والتحكم الخارق:**\n- الإذاعة العامة (مكتوب، ميديا)، احصائيات البوت، مغادرة المجموعات، تفعيل الصيانة، تحديث النظام.\n• حقوق السورس: @{DEV_USERNAME}"
+        msg = f"🛠️ **[ م 5 ] أوامر المطور والتحكم الخارق:**\n- الإذاعة العامة (مكتوب، ميديا)، احصائيات البوت، مغادرة المجموعات، تفعيل الصيانة، تحديث النظام الفوري.\n• حقوق السورس: @{DEV_USERNAME}"
     elif data == "tb_m6":
-        msg = f"🎮 **[ م 6 ] الألعاب والمسابقات الكبرى:**\n- قاعة الألعاب، لعبة الصراحة، زواج، تجميع نقاط، مسابقات أسرع حرف، روليت، حظ.\n• حقوق السورس: @{DEV_USERNAME}"
+        msg = f"🎮 **[ م 6 ] الألعاب والمسابقات الكبرى:**\n- قاعة الألعاب، لعبة الصراحة، زواج، تجميع نقاط، مسابقات أسرع حرف، روليت، حظ، البنك.\n• حقوق السورس: @{DEV_USERNAME}"
     elif data == "tb_back":
         await tb_commands_panel(update, context)
         return
     elif data == "tb_home":
-        await query.edit_message_text(f"🏠 القائمة الرئيسية لسورس تي بي (Tb) الإصدار 7.0.\n• حقوق السورس: @{DEV_USERNAME}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📋 عرض الأوامر الشاملة", callback_data="tb_m1")]]))
+        await query.edit_message_text(f"🏠 القائمة الرئيسية لسورس تي بي (Tb) - نظام الموسوي برو.\n• حقوق السورس: @{DEV_USERNAME}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📋 عرض الأوامر الشاملة", callback_data="tb_m1")]]))
         return
     else:
         return
     await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(back), parse_mode="Markdown")
 
 # ------------------------------------------------------------------------------
-# معالج الرسائل والنصي
+# معالج الرسائل والنصوص البرمجية
 # ------------------------------------------------------------------------------
 async def tb_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -381,7 +383,7 @@ def main():
     app.add_handler(CallbackQueryHandler(tb_callbacks_handler, pattern="^tb_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, tb_message_router))
 
-    logger.info("🚀 سورس تي بي (Tb) الإصدار 7.0 الأسطوري يعمل بكفاءة تامة وبدون ردود عشوائية...")
+    logger.info("🚀 سورس تي بي (Tb) نظام الموسوي برو الإصدار 8.0 يعمل بأقصى طاقة وبدون ردود عشوائية...")
     while True:
         try:
             app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
