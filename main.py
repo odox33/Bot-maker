@@ -3,14 +3,9 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
-try:
-    asyncio.get_event_loop()
-except RuntimeError:
-    asyncio.set_event_loop(asyncio.new_event_loop())
-
 API_ID = 36216701
 API_HASH = "f95bac8547d34e32dd37ec3cdbe28558"
-BOT_TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 app = Client(
     "SourceTPBot",
@@ -271,5 +266,4 @@ async def callback_handler(client, callback_query: CallbackQuery):
     elif data == "back_home":
         await callback_query.message.edit_text(MAIN_TEXT, reply_markup=MAIN_KEYBOARD)
 
-if __name__ == "__main__":
-    app.run()
+app.run()
