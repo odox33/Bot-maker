@@ -1,0 +1,104 @@
+import os
+import logging
+import sqlite3
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+
+# إعداد السجلات لمتابعة حالة البوت
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# توكن البوت الخاص بك
+TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
+
+# --- إعداد قاعدة البيانات (SQLite) ---
+def init_db():
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    # إنشاء جدول لحفظ معلومات المستخدمين
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            full_name TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# دالة لحفظ المستخدم في القاعدة
+def save_user(user_id, username, full_name):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        OR IGNORE INTO users (user_id, username, full_name) 
+        VALUES (?, ?, ?)
+    """, (user_id, username, full_name))
+    conn.commit()
+    conn.close()
+
+# دالة بداية التشغيل وحفظ المستخدم وإرسال الأزرار
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    
+    # حفظ المستخدم في قاعدة البيانات فور دخوله للبوت
+    save_user(user.id, user.username, user.full_name)
+    
+    keyboard = [
+        [InlineKeyboardButton("🆔 معرفة الآيدي (ID)", callback_data="get_my_id")],
+        [InlineKeyboardButton("زر شفاف 2", callback_data="btn_2")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"أهلاً بك يا {user.first_name} في الواجهة الجديدة!\nتم تسجيل بياناتك بنجاح.", 
+        reply_markup=reply_markup
+    )
+
+# دالة الاستجابة عند الضغط على الأزرار
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "get_my_id":
+        user = update.effective_user
+        await query.edit_message_text(text=f"🆔 الآيدي الخاص بك هو:\n`{user.id}`", parse_mode="Markdown")
+    elif query.data == "btn_2":
+        await query.edit_message_text(text="تم الضغط على الزر الثاني بنجاح!")
+
+# دالة إضافية لأمر /id لمعرفة الآيدي مباشرة عبر الكتابة
+async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    await update.message.reply_text(f"🆔 الآيدي الخاص بك هو:\n`{user.id}`", parse_mode="Markdown")
+
+def main():
+    # تهيئة القاعدة عند الإقلاع
+    init_db()
+
+    # بناء تطبيق البوت باستخدام التوكن
+    application = Application.builder().token(TOKEN).build()
+
+    # إضافة المعالجات (Handlers) للأوامر والأزرار
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("id", id_command))
+    application.add_handler(CallbackQueryHandler(button_handler))
+
+    # الحصول على المنفذ (Port) المخصص من منصة رندر أو استخدام 10000 افتراضياً
+    PORT = int(os.environ.get("PORT", "10000"))
+    
+    # رابط خدمتك الثابت على رندر
+    RENDER_URL = "https://bot-maker-1-709e.onrender.com"
+
+    logger.info("Starting bot via Webhook...")
+
+    # تشغيل البوت باستخدام نظام الويب هوك لتجنب تعارض getUpdates نهائياً
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=TOKEN,
+        webhook_url=f"{RENDER_URL}/{TOKEN}"
+    )
+
+if __name__ == "__main__":
+    main()
