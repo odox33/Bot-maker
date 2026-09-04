@@ -240,7 +240,6 @@ def get_admins_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("🔇 كتم / فك الكتم", callback_data="adm_mute"), InlineKeyboardButton("🚫 طرد / حظر", callback_data="adm_ban")],
         [InlineKeyboardButton("📌 تثبيت رسالة", callback_data="adm_pin"), InlineKeyboardButton("🗑️ مسح الرسائل", callback_data="adm_clean")],
-        [InlineKeyboardButton("⚠️ تحذير عضـو", callback_data="adm_warn"), InlineKeyboardButton("👤 رفع ادمن", callback_data="adm_promote")],
         [InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main_cmds")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -349,7 +348,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("✅ **تم تفعيل سورس Tp والحماية الشاملة في هذه المجموعة بنجاح!**\nاكتب `الاوامر` لإظهار القائمة الرئيسية.")
             return
 
-        # أمر الايدي (معالجة الايدي والشخص المردود عليه)
         reply = message.reply_to_message
         target_user = reply.from_user if reply else user
 
@@ -380,7 +378,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text(id_text)
             return
 
-        # أوامر الإدارة والمشرفين الكاملة (كتم، حظر، طرد، تثبيت، مسح)
         is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title or "مدير" in role_title or "ادمن" in role_title
 
         if text_clean in ["كتم", "صمت"] and is_elevated and reply:
@@ -395,10 +392,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await chat.ban_member(target_user.id)
             await message.reply_text(f"🚫 **تم حظر وطرد العضو بنجاح:** {target_user.first_name}")
             return
-        if text_clean in ["الغاء الحظر", "فك الحظر"] and is_elevated and reply:
-            await chat.unban_member(target_user.id)
-            await message.reply_text(f"✅ **تم رفع الحظر عن العضو بنجاح:** {target_user.first_name}")
-            return
         if text_clean == "تثبيت" and is_elevated and reply:
             await reply.pin()
             await message.reply_text("📌 **تم تثبيت الرسالة بنجاح.**")
@@ -406,20 +399,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text_clean in ["مسح", "حذف"] and is_elevated and reply:
             await reply.delete()
             await message.reply_text("🗑️ **تم مسح الرسالة المحددة بنجاح.**")
-            return
-
-        # أوامر الترفيه الفورية في الكروبات
-        if text_clean == "نسبه الحب":
-            love_val = random.randint(10, 100)
-            await message.reply_text(f"❤️ **نسبة الحب بينكم هي : {love_val}%** 😍")
-            return
-        if text_clean in ["نكتة", "نكت"]:
-            jokes_list = [
-                "محشش سألوه: شنو أبطح عاصمة بالعالم؟ قال: أبو ظبي لأنها متبطحة! 😂",
-                "واحد كولشي ينسى، راح للدكتور كتبله ورقة وكتب بيها: تذكر إنك نسيت شي! 😆",
-                "واحد يغار على مرته حيل، كالها ليش لابسة عباية مطرزة؟ كلتله هذا ورد، كاللها لا هذا تفجير! 😜"
-            ]
-            await message.reply_text(random.choice(jokes_list))
             return
 
         if text_clean.startswith("قفل ") or text_clean.startswith("فتح "):
@@ -587,7 +566,36 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text=locks_text, reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page2":
-        await query.edit_message_text(text="🛡️ **( م 2 ) ↬ اوامر المشرفين والإدارة:**", reply_markup=get_admins_menu_keyboard())
+        admin_menu_text = (
+            "- اوامر مشرفين المجموعه ⚡️⚡️.\n"
+            "- الاوامر تعمل بامر ( الكتابه ) :\n\n"
+            "• القوائم • الميديا\n"
+            "• نزلني • انذار\n"
+            "• تصفير الترند\n"
+            "• ضبط الحماية\n"
+            "• تثبيت • الاعدادات\n"
+            "• الردود المميزه\n"
+            "• الردود المتعدده\n"
+            "• الاوامر المضافه\n"
+            "• ضع التكرار + العدد\n"
+            "• التفعيلات • صلاحياتي\n"
+            "• اضف رد • اضف امر\n"
+            "• تاك للكل • ضع رابط\n"
+            "• وضع تاك • تغيير المالك\n"
+            "• ضع ترحيب • ضع توحيد\n"
+            "• انشاء رابط • قائمه المنع\n"
+            "• الغاء التثبيت • تعيين الايدي\n"
+            "• تغيير الايدي • منع • الغاء منع\n"
+            "• اضف رد متعدد\n"
+            "• الغاء تثبيت الكل • كشف البوتات\n"
+            "• ضع عدد المسح + العدد\n"
+            "• اضف نقاط + العدد بالرد\n"
+            "• اضف رسائل + العدد بالرد\n"
+            "• ضع رتبه + اسم الرتبه بالرد\n"
+            "• اضف سحكات + العدد بالرد\n"
+            "• ضع وقت المسح + الوقت بالرد"
+        )
+        await query.edit_message_text(text=admin_menu_text, reply_markup=get_admins_menu_keyboard())
         return
     elif data == "menu_page3":
         await query.edit_message_text(text="⚙️ **( م 3 ) ↬ اوامر التفعيلات والتعطيل الكبرى:**", reply_markup=get_activation_menu(1))
@@ -602,7 +610,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text="🔥 **( م 6 ) ↬ اوامر الترفيه والألعاب:**", reply_markup=get_fun_menu_keyboard())
         return
 
-    # تفاعل أزرار المشرفين السريعة عبر القائمة
     if data == "adm_mute":
         await query.answer("أرسل كلمة (كتم) بالرد على رسالة العضو المراد كتمه", show_alert=True)
         return
@@ -615,41 +622,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_clean":
         await query.answer("أرسل كلمة (مسح) بالرد على رسالة الرسالة المراد حذفها", show_alert=True)
         return
-    elif data == "adm_warn":
-        await query.answer("ميزة التنبيهات والتحذيرات مفعلة تلقائياً في السورس", show_alert=True)
-        return
-    elif data == "adm_promote":
-        await query.answer("استخدم أمر (رفع ادمن) أو الأزرار المخصصة للمطورين", show_alert=True)
-        return
-
-    # تفاعل أزرار الترفيه عبر القائمة
-    if data == "fun_love":
-        await query.answer(f"❤️ نسبة الحب العشوائية: {random.randint(20, 100)}%", show_alert=True)
-        return
-    elif data == "fun_crazy":
-        await query.answer(f"😏 نسبة الانحراف: {random.randint(5, 99)}%", show_alert=True)
-        return
-    elif data == "fun_choices":
-        await query.answer("🃏 لو خيروك: (تأكل أكل مالتي كرسبي لو تشرب عصير حار؟)", show_alert=True)
-        return
-    elif data == "fun_jokes":
-        await query.answer("🎭 تم إرسال نكتة جديدة في الكروب!", show_alert=True)
-        return
-    elif data == "fun_fortune":
-        await query.answer("🔮 حظك اليوم: ستحصل على نقاط وتفاعل مميز جداً في الكروب!", show_alert=True)
-        return
-    elif data == "fun_games":
-        await query.answer("🔪 لعبة المافيا والروليت قيد التفعيل التلقائي.", show_alert=True)
-        return
 
     if data.startswith("dev_add_"):
         await query.answer("قم بالرد على رسالة الشخص في الكروب واكتب أمر الرفع المطلوب", show_alert=True)
-        return
-    elif data == "dev_demote_all":
-        await query.answer("قم بالرد على الشخص واكتب (تنزيل)", show_alert=True)
-        return
-    elif data == "dev_broadcast":
-        await query.answer("خاصية الإذاعة العامة للمطورين جاهزة للعمل.", show_alert=True)
         return
 
     if data.startswith("page_"):
@@ -686,4 +661,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
