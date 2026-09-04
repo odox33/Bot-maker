@@ -1,5 +1,5 @@
 # ==============================================================================
-# سورس اندريس الأسطوري 5.3 - النسخة العملاقة والموسعة بالكامل (جاهزة 100%)
+# سورس تي بي (Tb) الأسطوري المطور - النسخة العملاقة والمتكاملة 7.0 (2026)
 # ==============================================================================
 
 import os
@@ -10,7 +10,7 @@ import sqlite3
 import logging
 import asyncio
 from datetime import datetime, timedelta
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -27,70 +27,64 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-DEV_USERNAME = os.getenv("DEV_USERNAME", "odox3")
+DEV_USERNAME = "odox3"
+DEV_ID = 8297163405
 
 # ------------------------------------------------------------------------------
-# قاعدة البيانات الشاملة والموسعة لكل إعدادات الحماية والأوامر
+# قاعدة البيانات الشاملة لإدارة المجموعات، الحماية، السيرفرات، والأعضاء
 # ------------------------------------------------------------------------------
-def init_mega_database():
-    conn = sqlite3.connect("bot_massive_source.db", check_same_thread=False)
+def init_tb_database():
+    conn = sqlite3.connect("tb_source_ultra_mega.db", check_same_thread=False)
     cursor = conn.cursor()
+    
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users_registry (
+        CREATE TABLE IF NOT EXISTS tb_users (
             user_id INTEGER PRIMARY KEY,
             username TEXT,
             full_name TEXT,
-            balance INTEGER DEFAULT 5000,
-            bank_balance INTEGER DEFAULT 25000,
-            experience_points INTEGER DEFAULT 0,
-            user_level INTEGER DEFAULT 1,
-            admin_rank TEXT DEFAULT 'مطور أساسي'
+            balance INTEGER DEFAULT 15000,
+            bank_balance INTEGER DEFAULT 100000,
+            xp INTEGER DEFAULT 0,
+            level INTEGER DEFAULT 1,
+            rank_title TEXT DEFAULT 'مطور أساسي'
         )
     """)
+    
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS groups_security_settings (
+        CREATE TABLE IF NOT EXISTS tb_group_locks (
             chat_id INTEGER PRIMARY KEY,
-            anti_links INTEGER DEFAULT 1,
-            anti_usernames INTEGER DEFAULT 1,
-            anti_spam INTEGER DEFAULT 1,
+            lock_links INTEGER DEFAULT 1,
+            lock_usernames INTEGER DEFAULT 1,
+            lock_spam INTEGER DEFAULT 1,
             lock_chat INTEGER DEFAULT 0,
-            anti_bots INTEGER DEFAULT 1,
-            welcome_msg INTEGER DEFAULT 1,
-            anti_forward INTEGER DEFAULT 1,
-            anti_photos INTEGER DEFAULT 1,
-            anti_videos INTEGER DEFAULT 1,
-            anti_stickers INTEGER DEFAULT 1,
-            anti_gifs INTEGER DEFAULT 1,
-            anti_pin INTEGER DEFAULT 1,
-            anti_change_info INTEGER DEFAULT 1,
-            anti_long_text INTEGER DEFAULT 1,
-            anti_bad_words INTEGER DEFAULT 1,
-            anti_contacts INTEGER DEFAULT 1,
-            anti_files INTEGER DEFAULT 1,
-            anti_voice INTEGER DEFAULT 1,
-            anti_audio INTEGER DEFAULT 1,
-            anti_coupons INTEGER DEFAULT 1,
-            anti_tag INTEGER DEFAULT 1
+            lock_bots INTEGER DEFAULT 1,
+            lock_forward INTEGER DEFAULT 1,
+            lock_photos INTEGER DEFAULT 1,
+            lock_videos INTEGER DEFAULT 1,
+            lock_stickers INTEGER DEFAULT 1,
+            lock_gifs INTEGER DEFAULT 1,
+            lock_pin INTEGER DEFAULT 0,
+            lock_contacts INTEGER DEFAULT 1,
+            lock_files INTEGER DEFAULT 1,
+            lock_voice INTEGER DEFAULT 1,
+            lock_tag INTEGER DEFAULT 1,
+            lock_arabic INTEGER DEFAULT 0,
+            lock_english INTEGER DEFAULT 0,
+            lock_badwords INTEGER DEFAULT 1,
+            lock_reply INTEGER DEFAULT 0,
+            lock_inline INTEGER DEFAULT 1
         )
     """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS custom_bot_replies (
-            chat_id INTEGER,
-            trigger_keyword TEXT,
-            response_text TEXT,
-            PRIMARY KEY (chat_id, trigger_keyword)
-        )
-    """)
+    
     conn.commit()
     conn.close()
 
-init_mega_database()
-USER_STATES = {}
+init_tb_database()
 
 # ------------------------------------------------------------------------------
-# نظام الحماية الشامل والمتقدم للمجموعات (مفعل لكل الأقسام بالصورة)
+# محرك الحماية الفائق والحديث (Tb Security V7)
 # ------------------------------------------------------------------------------
-async def security_guard_massive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def tb_security_engine(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.effective_chat:
         return
     
@@ -101,151 +95,198 @@ async def security_guard_massive(update: Update, context: ContextTypes.DEFAULT_T
     
     try:
         member = await context.bot.get_chat_member(chat_id, user.id)
-        if member.status in ["administrator", "creator"] or user.id == context.bot.id:
+        if member.status in ["administrator", "creator"] or user.id == DEV_ID:
             return
     except:
         pass
 
-    conn = sqlite3.connect("bot_massive_source.db")
+    conn = sqlite3.connect("tb_source_ultra_mega.db")
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT anti_links, anti_usernames, anti_spam, lock_chat, anti_forward, 
-               anti_photos, anti_videos, anti_stickers, anti_gifs, anti_contacts, 
-               anti_files, anti_voice, anti_audio, anti_tag 
-        FROM groups_security_settings WHERE chat_id = ?
+        SELECT lock_links, lock_usernames, lock_spam, lock_chat, lock_forward, 
+               lock_photos, lock_videos, lock_stickers, lock_gifs, lock_pin, 
+               lock_contacts, lock_files, lock_voice, lock_tag, lock_arabic, 
+               lock_english, lock_badwords, lock_reply, lock_inline
+        FROM tb_group_locks WHERE chat_id = ?
     """, (chat_id,))
     row = cursor.fetchone()
     if not row:
-        settings = (1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+        locks = (1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1)
     else:
-        settings = row
+        locks = row
     conn.close()
 
-    anti_links, anti_usernames, anti_spam, lock_chat, anti_forward, anti_photos, anti_videos, anti_stickers, anti_gifs, anti_contacts, anti_files, anti_voice, anti_audio, anti_tag = settings
+    l_links, l_user, l_spam, l_chat, l_fwd, l_ph, l_vid, l_stk, l_gif, l_pin, l_cont, l_file, l_voi, l_tag, l_arb, l_eng, l_bad, l_rep, l_inl = locks
 
-    if lock_chat == 1:
+    if l_chat == 1:
         try: await msg.delete()
         except: pass
         return
 
-    if anti_links == 1 and any(w in text.lower() for w in ["http://", "https://", "t.me/", "www.", ".com", "joinchat"]):
+    if l_links == 1 and any(w in text.lower() for w in ["http://", "https://", "t.me/", "www.", ".com", "joinchat", "t.me/joinchat"]):
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ عذراً [{user.first_name}](tg://user?id={user.id})، ممنوع نشر الروابط!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ عذراً [{user.first_name}](tg://user?id={user.id})، ممنوع نشر الروابط!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_usernames == 1 and ("@" in text or "تليكرام" in text):
+    if l_user == 1 and ("@" in text or "تليكرام" in text):
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع نشر المعرفات هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ ممنوع نشر المعرفات هنا [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_forward == 1 and (msg.forward_date or msg.forward_from):
+    if l_fwd == 1 and (msg.forward_date or msg.forward_from):
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع توجيه الرسائل هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ ممنوع توجيه الرسائل هنا [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_photos == 1 and msg.photo:
+    if l_ph == 1 and msg.photo:
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع نشر الصور هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ ممنوع نشر الصور هنا [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_videos == 1 and msg.video:
+    if l_vid == 1 and msg.video:
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع نشر الفيديوهات هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ ممنوع نشر الفيديوهات هنا [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_stickers == 1 and msg.sticker:
+    if l_stk == 1 and msg.sticker:
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع الملصقات هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ ممنوع الملصقات هنا [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_gifs == 1 and msg.animation:
+    if l_gif == 1 and msg.animation:
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع المتحركات هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ ممنوع المتحركات هنا [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_contacts == 1 and msg.contact:
+    if l_pin == 1 and msg.pinned_message:
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع نشر جهات الاتصال هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ التثبيت مقفل في هذه المجموعة!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
-    if anti_files == 1 and msg.document:
+    if l_bad == 1 and any(w in text.lower() for w in ["كس", "طيز", "عهر", "فحش", "منيوك", "قندرة"]):
         try:
             await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع إرسال الملفات هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
-        except: pass
-        return
-
-    if (anti_voice == 1 and msg.voice) or (anti_audio == 1 and msg.audio):
-        try:
-            await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع إرسال الصوتيات والبصمات هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
-        except: pass
-        return
-
-    if anti_tag == 1 and ("@" in text and len(text.split()) > 3):
-        try:
-            await msg.delete()
-            await msg.reply_text(f"⚠️ ممنوع التاك الجماعي هنا [{user.first_name}](tg://user?id={user.id})!", parse_mode="Markdown")
+            await msg.reply_text(f"⚠️ ممنوع استخدام الألفاظ النابية [{user.first_name}](tg://user?id={user.id})!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
         except: pass
         return
 
 # ------------------------------------------------------------------------------
-# إدارة الأوامر والردود المخصصة وتفعيلها التام
+# الأوامر المتقدمة، الإدارة، والكلوشات الخاصة بسورس تي بي (Tb)
 # ------------------------------------------------------------------------------
-async def custom_commands_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
+async def tb_profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    text = f"🪪 **معلومات الملف الشخصي:**\n\n• الاسم: {user.first_name}\n• المعرف: @{user.username or 'لا يوجد'}\n• الأيدي (ID): `{user.id}`\n• الرتبة الحالية: مطور أساسي 👑\n• حقوق السورس: @{DEV_USERNAME}"
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+async def tb_pin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text(f"⚠️ يجب الرد على الرسالة المراد تثبيتها!\n• حقوق السورس: @{DEV_USERNAME}")
         return
-    
-    text = update.message.text.strip()
-    user_id = update.effective_user.id
+    try:
+        await update.message.reply_to_message.pin()
+        chat_id = update.effective_chat.id
+        conn = sqlite3.connect("tb_source_ultra_mega.db")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE tb_group_locks SET lock_pin = 1 WHERE chat_id = ?", (chat_id,))
+        conn.commit()
+        conn.close()
+        await update.message.reply_text(f"📌 **تم تثبيت (pin) بنجاح تام في المجموعة.**\n• بواسطة: {update.effective_user.first_name}\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
+    except Exception as e:
+        await update.message.reply_text(f"❌ عذراً، لا أملك صلاحية التثبيت أو حدث خطأ: {e}")
+
+async def tb_unpin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        await context.bot.unpin_all_chat_messages(update.effective_chat.id)
+        chat_id = update.effective_chat.id
+        conn = sqlite3.connect("tb_source_ultra_mega.db")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE tb_group_locks SET lock_pin = 0 WHERE chat_id = ?", (chat_id,))
+        conn.commit()
+        conn.close()
+        await update.message.reply_text(f"🔓 **تم فتح (pin) بنجاح تام في المجموعة.**\n• بواسطة: {update.effective_user.first_name}\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="Markdown")
+    except Exception as e:
+        await update.message.reply_text(f"❌ عذراً، لا أملك صلاحية إلغاء التثبيت: {e}")
+
+async def tb_mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text(f"⚠️ يجب الرد على الشخص المراد كتمه!\n• حقوق السورس: @{DEV_USERNAME}")
+        return
+    user_id = update.message.reply_to_message.from_user.id
     chat_id = update.effective_chat.id
+    try:
+        await context.bot.restrict_chat_member(chat_id, user_id, ChatPermissions(can_send_messages=False))
+        await update.message.reply_text(f"🔇 تم كتم العضو بنجاح!\n• حقوق السورس: @{DEV_USERNAME}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ لا يمكنني كتم العضو: {e}")
 
-    if text == "اضف امر":
-        USER_STATES[user_id] = {"action": "wait_old", "chat_id": chat_id}
-        await update.message.reply_text("📥 حسناً، ارسل الآن **الأمر القديم** لاختصاره:", parse_mode="Markdown")
+async def tb_unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text(f"⚠️ يجب الرد على الشخص المراد إلغاء كتمه!\n• حقوق السورس: @{DEV_USERNAME}")
         return
-    elif text == "اضف رد":
-        USER_STATES[user_id] = {"action": "wait_kw", "chat_id": chat_id}
-        await update.message.reply_text("📥 حسناً، ارسل الآن **الكلمة** التي تريد أن يرد عليها البوت:", parse_mode="Markdown")
+    user_id = update.message.reply_to_message.from_user.id
+    chat_id = update.effective_chat.id
+    try:
+        await context.bot.restrict_chat_member(chat_id, user_id, ChatPermissions(
+            can_send_messages=True, can_send_media_messages=True, can_send_other_messages=True, can_add_web_page_previews=True
+        ))
+        await update.message.reply_text(f"🔊 تم إلغاء كتم العضو بنجاح!\n• حقوق السورس: @{DEV_USERNAME}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ لا يمكنني إلغاء كتم العضو: {e}")
+
+async def tb_ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text(f"⚠️ يجب الرد على الشخص المراد حظره!\n• حقوق السورس: @{DEV_USERNAME}")
         return
-    elif text in ["حذف رد", "الغاء رد"]:
-        USER_STATES[user_id] = {"action": "wait_del_r", "chat_id": chat_id}
-        await update.message.reply_text("🗑️ ارسل **الكلمة** الخاصة بالرد المراد حذفه:", parse_mode="Markdown")
+    user_id = update.message.reply_to_message.from_user.id
+    chat_id = update.effective_chat.id
+    try:
+        await context.bot.ban_chat_member(chat_id, user_id)
+        await update.message.reply_text(f"🔨 تم حظر العضو من المجموعة بنجاح!\n• حقوق السورس: @{DEV_USERNAME}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ لا يمكنني حظر العضو: {e}")
+
+async def tb_unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text(f"⚠️ يجب الرد على رسالة الشخص المراد إلغاء حظره!\n• حقوق السورس: @{DEV_USERNAME}")
         return
-    elif text in ["حذف امر", "الغاء امر"]:
-        USER_STATES[user_id] = {"action": "wait_del_c", "chat_id": chat_id}
-        await update.message.reply_text("🗑️ ارسل **الأمر** المراد حذفه:", parse_mode="Markdown")
-        return
+    user_id = update.message.reply_to_message.from_user.id
+    chat_id = update.effective_chat.id
+    try:
+        await context.bot.unban_chat_member(chat_id, user_id, only_if_banned=True)
+        await update.message.reply_text(f"🤝 تم إلغاء حظر العضو بنجاح!\n• حقوق السورس: @{DEV_USERNAME}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ لا يمكنني إلغاء حظر العضو: {e}")
 
 # ------------------------------------------------------------------------------
-# لوحة الأوامر الشاملة والموسعة (م 1 مطابقة تماماً للصورة)
+# لوحة الأوامر المحدثة بالكامل للإصدار 7.0
 # ------------------------------------------------------------------------------
-async def show_commands_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def tb_commands_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("🛡️ [ م 1 ] أواهر الحماية والقفل والفتح الشاملة", callback_data="p_m1")],
-        [InlineKeyboardButton("👑 [ م 2 ] المشرفين والرتب", callback_data="p_m2"),
-         InlineKeyboardButton("⚙️ [ م 3 ] التفعيلات", callback_data="p_m3")],
-        [InlineKeyboardButton("🧹 [ م 4 ] المسح والتنظيف", callback_data="p_m4"),
-         InlineKeyboardButton("🎮 [ م 6 ] الألعاب والمسابقات", callback_data="p_m6")],
-        [InlineKeyboardButton("🔙 رجوع للوحة الرئيسية", callback_data="p_home")]
+        [InlineKeyboardButton("🛡️ حماية المجموعات الشاملة (م 1)", callback_data="tb_m1")],
+        [InlineKeyboardButton("👑 المشرفين والرتب المتقدمة (م 2)", callback_data="tb_m2"),
+         InlineKeyboardButton("⚙️ إعدادات البوت والترحيب (م 3)", callback_data="tb_m3")],
+        [InlineKeyboardButton("🧹 أوامر التنظيف والمسح (م 4)", callback_data="tb_m4"),
+         InlineKeyboardButton("🛠️ لوحة تحكم المطور الخارق (م 5)", callback_data="tb_m5")],
+        [InlineKeyboardButton("🎮 الألعاب والترتيب المالي (م 6)", callback_data="tb_m6")],
+        [InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data="tb_home")]
     ]
-    text = f"🛡️ **أوامر الحماية والقفل والفتح الشاملة (م 1):**\n\n• قفل وفتح: (الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركات، التثبيت، التغيير، الدردشة، الكلايش، التكرار السريع، الفحش، الجهات، الملفات، الصوتيات، البصمات، الكوبونات، التاك الجماعي).\n\n• المطور الأساسي: @{DEV_USERNAME}"
+    text = f"⚙️ **سورس تي بي (Tb) الإصدار 7.0 - لوحة التحكم المركزية:**\n\n• تم تحديث كافة الأوامر والمميزات بنجاح.\n• المطور الأساسي: @{DEV_USERNAME}"
     
     if update.callback_query:
         await update.callback_query.answer()
@@ -253,223 +294,94 @@ async def show_commands_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-async def panel_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def tb_callbacks_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-    back = [[InlineKeyboardButton("🔙 رجوع للقائمة الأوامر", callback_data="back_p")]]
+    back = [[InlineKeyboardButton("🔙 رجوع لقائمة الأوامر", callback_data="tb_back")]]
 
-    if data == "p_m1":
-        msg = f"🛡️ **أوامر الحماية والقفل والفتح الشاملة (م 1):**\n\n• قفل وفتح: (الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركات، التثبيت، التغيير، الدردشة، الكلايش، التكرار السريع، الفحش، الجهات، الملفات، الصوتيات، البصمات، الكوبونات، التاك الجماعي).\n\n• المطور الأساسي: @{DEV_USERNAME}"
-    elif data == "p_m2":
-        msg = "👑 **[ م 2 ] المشرفين والرتب:**\n- رفع مميز، رفع ادمن، رفع مدير، رفع مالك، رفع مالك أساسي، رفع مطور، رفع مطور ثانوي، رفع مطور أساسي.\n- تنزله، تنزلني، تنزيل الكل."
-    elif data == "p_m3":
-        msg = "⚙️ **[ م 3 ] التفعيلات والتعطيل:**\n- تفعيل وترحيب وتعطيل الردود والإشعارات."
-    elif data == "p_m4":
-        msg = "🧹 **[ م 4 ] المسح والتنظيف:**\n- مسح الرسائل، تنظيف الصامتين، وإزالة الحسابات الوهمية."
-    elif data == "p_m6":
-        msg = "🎮 **[ م 6 ] الألعاب والمسابقات:**\n- قاعة ألعاب سورس اندريس المتقدمة والمستويات المالية."
-    elif data == "back_p":
-        await show_commands_panel(update, context)
+    if data == "tb_m1":
+        msg = f"🛡️ **[ م 1 ] أوامر القفل والفتح المتقدمة:**\n- قفل/فتح: الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، التوجيه، الملصقات، المتحركات، التثبيت، الدردشة، الفحش، الجهات، الملفات، الصوتيات، البصمات، الردود، الانلاين.\n• حقوق السورس: @{DEV_USERNAME}"
+    elif data == "tb_m2":
+        msg = f"👑 **[ م 2 ] المشرفين والرتب:**\n- رفع مميز، رفع ادمن، رفع مدير، رفع مالك، رفع مطور، تنزيل الكل، قائمة الرتب والمشرفين المعتمدين.\n• حقوق السورس: @{DEV_USERNAME}"
+    elif data == "tb_m3":
+        msg = f"⚙️ **[ م 3 ] التفعيلات والإشعارات:**\n- تفعيل/تعطيل الترحيب، الردود التلقائية، الإشعارات، روابط الانضمام، الحماية الذكية.\n• حقوق السورس: @{DEV_USERNAME}"
+    elif data == "tb_m4":
+        msg = f"🧹 **[ م 4 ] المسح والتنظيف الشامل:**\n- مسح الرسائل، تنظيف الصامتين، طرد الحسابات المحذوفة، مسح المكتومين، تنظيف السجل.\n• حقوق السورس: @{DEV_USERNAME}"
+    elif data == "tb_m5":
+        msg = f"🛠️ **[ م 5 ] أوامر المطور والتحكم الخارق:**\n- الإذاعة العامة (مكتوب، ميديا)، احصائيات البوت، مغادرة المجموعات، تفعيل الصيانة، تحديث النظام.\n• حقوق السورس: @{DEV_USERNAME}"
+    elif data == "tb_m6":
+        msg = f"🎮 **[ م 6 ] الألعاب والمسابقات الكبرى:**\n- قاعة الألعاب، لعبة الصراحة، زواج، تجميع نقاط، مسابقات أسرع حرف، روليت، حظ.\n• حقوق السورس: @{DEV_USERNAME}"
+    elif data == "tb_back":
+        await tb_commands_panel(update, context)
         return
-    elif data == "p_home":
-        await query.edit_message_text("🏠 القائمة الرئيسية لسورس اندريس الأسطوري.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📋 عرض الأوامر الشاملة", callback_data="p_m1")]]))
+    elif data == "tb_home":
+        await query.edit_message_text(f"🏠 القائمة الرئيسية لسورس تي بي (Tb) الإصدار 7.0.\n• حقوق السورس: @{DEV_USERNAME}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📋 عرض الأوامر الشاملة", callback_data="tb_m1")]]))
         return
     else:
         return
     await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(back), parse_mode="Markdown")
 
 # ------------------------------------------------------------------------------
-# قاعة الألعاب والمستويات الضخمة
+# معالج الرسائل والنصي
 # ------------------------------------------------------------------------------
-async def massive_games_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("🎲 حجر النرد السريع", callback_data="mg_dice"),
-         InlineKeyboardButton("💰 حظك اليوم المالي", callback_data="mg_luck")],
-        [InlineKeyboardButton("🥷 سرقة البنك الكبرى", callback_data="mg_rob"),
-         InlineKeyboardButton("📊 ملفك الشخصي والـ XP", callback_data="mg_prof")],
-        [InlineKeyboardButton("🔙 الرئيسية", callback_data="p_home")]
-    ]
-    text = "🎮 **قاعة ألعاب سورس اندريس المتقدمة:**"
-    if update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-    else:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-
-async def massive_games_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    data = query.data
-
-    conn = sqlite3.connect("bot_massive_source.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT balance, bank_balance, experience_points, user_level, admin_rank FROM users_registry WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    if not row:
-        cursor.execute("INSERT INTO users_registry (user_id, username, full_name, balance) VALUES (?, ?, ?, 5000)", (user_id, query.from_user.username, query.from_user.first_name))
-        conn.commit()
-        bal, bank, xp, lvl, rank = 5000, 25000, 0, 1, "مطور أساسي"
-    else:
-        bal, bank, xp, lvl, rank = row
-
-    if data == "mg_dice":
-        dice = random.randint(1, 6)
-        earned = dice * 150
-        new_b = bal + earned
-        cursor.execute("UPDATE users_registry SET balance = ? WHERE user_id = ?", (new_b, user_id))
-        conn.commit()
-        await query.edit_message_text(f"🎲 النرد: **{dice}**\n🎉 ربحت `{earned}` نقطة!\n💰 رصيدك: `{new_b}`", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="mg_b")]]))
-    elif data == "mg_luck":
-        luck = random.choice([1000, 2500, 5000, -1000])
-        new_b = bal + luck
-        cursor.execute("UPDATE users_registry SET balance = ? WHERE user_id = ?", (new_b, user_id))
-        conn.commit()
-        await query.edit_message_text(f"🍀 حظك اليوم: `{luck}` نقطة.\n💰 رصيدك: `{new_b}`", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="mg_b")]]))
-    elif data == "mg_rob":
-        loot = random.randint(1500, 6000)
-        new_b = bal + loot
-        cursor.execute("UPDATE users_registry SET balance = ? WHERE user_id = ?", (new_b, user_id))
-        conn.commit()
-        await query.edit_message_text(f"🥷 تمت عملية السطو!\n💎 الغنيمة: `{loot}` نقطة.\n💰 رصيدك: `{new_b}`", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="mg_b")]]))
-    elif data == "mg_prof":
-        await query.edit_message_text(f"👤 **ملفك الشخصي:**\n🆔 الآيدي: `{user_id}`\n👑 الرتبة: `{rank}`\n💰 الكاش: `{bal}`\n🏦 البنك: `{bank}`\n⭐ الـ XP والمستوى: `{xp}` (مستوى {lvl})", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="mg_b")]]))
-    elif data == "mg_b":
-        await massive_games_menu(update, context)
-        conn.close()
-        return
-    conn.close()
-
-# ------------------------------------------------------------------------------
-# المعالج الشامل للرسائل والردود والتفاعلات
-# ------------------------------------------------------------------------------
-async def massive_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def tb_message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
     
-    await security_guard_massive(update, context)
-
-    chat_id = update.effective_chat.id
-    user = update.effective_user
+    await tb_security_engine(update, context)
     text = update.message.text.strip()
-    user_id = user.id
-
-    if user_id in USER_STATES:
-        state = USER_STATES[user_id]
-        if state["chat_id"] == chat_id:
-            action = state["action"]
-            if action == "wait_kw":
-                USER_STATES[user_id] = {"action": "wait_res", "chat_id": chat_id, "kw": text}
-                await update.message.reply_text(f"📥 الكلمة: `{text}`.\nالآن ارسل **الرد** المرتبط بها:", parse_mode="Markdown")
-                return
-            elif action == "wait_res":
-                kw = state["kw"]
-                conn = sqlite3.connect("bot_massive_source.db")
-                cursor = conn.cursor()
-                cursor.execute("INSERT OR REPLACE INTO custom_bot_replies (chat_id, trigger_keyword, response_text) VALUES (?, ?, ?)", (chat_id, kw, text))
-                conn.commit()
-                conn.close()
-                del USER_STATES[user_id]
-                await update.message.reply_text(f"✅ تم حفظ الرد للكلمة `{kw}` بنجاح!", parse_mode="Markdown")
-                return
-            elif action == "wait_old":
-                USER_STATES[user_id] = {"action": "wait_new", "chat_id": chat_id, "old": text}
-                await update.message.reply_text(f"📥 الأمر القديم: `{text}`.\nارسل **الأمر الجديد** لاختصاره:", parse_mode="Markdown")
-                return
-            elif action == "wait_new":
-                old = state["old"]
-                conn = sqlite3.connect("bot_massive_source.db")
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM custom_bot_replies WHERE chat_id = ? AND trigger_keyword = ?", (chat_id, old))
-                cursor.execute("INSERT OR REPLACE INTO custom_bot_replies (chat_id, trigger_keyword, response_text) VALUES (?, ?, ?)", (chat_id, text, f"اختصار للأمر: {old}"))
-                conn.commit()
-                conn.close()
-                del USER_STATES[user_id]
-                await update.message.reply_text(f"✅ تم إضافة واختصار الأمر `{text}` بدلاً من `{old}`.", parse_mode="Markdown")
-                return
-            elif action in ["wait_del_r", "wait_del_c"]:
-                conn = sqlite3.connect("bot_massive_source.db")
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM custom_bot_replies WHERE chat_id = ? AND trigger_keyword = ?", (chat_id, text))
-                conn.commit()
-                conn.close()
-                del USER_STATES[user_id]
-                await update.message.reply_text(f"🗑️ تم حذف الرد أو الأمر `{text}` بنجاح!", parse_mode="Markdown")
-                return
-
-    conn = sqlite3.connect("bot_massive_source.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT response_text FROM custom_bot_replies WHERE chat_id = ? AND trigger_keyword = ?", (chat_id, text))
-    res = cursor.fetchone()
-    if res:
-        await update.message.reply_text(res[0])
-        conn.close()
-        return
-
     lower = text.lower()
+
     if lower in ["الاوامر", "الأوامر", "اوامر", "أوامر"]:
-        await show_commands_panel(update, context)
-        conn.close()
+        await tb_commands_panel(update, context)
+        return
+    elif lower in ["تفعيل التثبيت", "قفل التثبيت", "تثبيت"]:
+        await tb_pin_command(update, context)
+        return
+    elif lower in ["فتح التثبيت", "تعطيل التثبيت", "فتح تثبيت"]:
+        await tb_unpin_command(update, context)
+        return
+    elif lower in ["معلوماتي", "الملف الشخصي", "ايادي"]:
+        await tb_profile_command(update, context)
+        return
+    elif lower in ["كتم"]:
+        await tb_mute_command(update, context)
+        return
+    elif lower in ["الغاء كتم", "إلغاء كتم"]:
+        await tb_unmute_command(update, context)
+        return
+    elif lower in ["حظر"]:
+        await tb_ban_command(update, context)
+        return
+    elif lower in ["الغاء حظر", "إلغاء حظر", "فك حظر"]:
+        await tb_unban_command(update, context)
         return
 
-    replies = {
-        "بوت": "عيون البوت، امرني بشي يا غالي؟ 🤖❤️",
-        "السلام عليكم": "وعليكم السلام ورحمة الله وبركاته، منورنا يا مبدع! 🤍",
-        "شلونك": "الحمد لله بخير وتمام التمام، أنت طمني عنك؟ 😊",
-        "صباح الخير": "صباح النور والسرور، نهارك سعيد 🌸",
-        "شكرا": "العفو ولو، تدلل عيوني واجبنا! 🙏"
-    }
-    if lower in replies:
-        await update.message.reply_text(replies[lower])
-        conn.close()
-        return
-
-    cursor.execute("SELECT balance, experience_points, user_level FROM users_registry WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    if not row:
-        cursor.execute("INSERT INTO users_registry (user_id, username, full_name, balance, experience_points, user_level) VALUES (?, ?, ?, 5000, 30, 1)", (user_id, user.username, user.first_name))
-    else:
-        bal, xp, lvl = row
-        new_xp = xp + 30
-        new_lvl = lvl
-        if new_xp >= lvl * 400:
-            new_lvl += 1
-            await update.message.reply_text(f"🎖️ مبروك [{user.first_name}](tg://user?id={user.id})! صعدت للمستوى **{new_lvl}**!")
-        cursor.execute("UPDATE users_registry SET experience_points = ?, user_level = ?, balance = ? WHERE user_id = ?", (new_xp, new_lvl, bal + 20, user_id))
-    conn.commit()
-    conn.close()
-
 # ------------------------------------------------------------------------------
-# التشغيل الرئيسي والتسجيل
+# التشغيل الرئيسي للبوت
 # ------------------------------------------------------------------------------
-async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    kb = [
-        [InlineKeyboardButton("📋 عرض الأوامر الشاملة", callback_data="p_m1")],
-        [InlineKeyboardButton("🎮 قاعة الألعاب والمستويات", callback_data="games_menu")]
-    ]
-    await update.message.reply_text(f"مرحباً بك عزيزي [{user.first_name}](tg://user?id={user.id}) في سورس اندريس 5.3 المطور العملاق!", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
 def main():
     if TOKEN == "YOUR_BOT_TOKEN_HERE":
-        logger.error("❌ يرجى تعيين التوكن الحقيقي للبوت!")
+        logger.error("❌ يرجى تعيين التوكن الحقيقي للبوت في المتغير!")
         return
 
     app = Application.builder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start_cmd))
-    app.add_handler(CommandHandler(["الاوامر", "الأوامر", "اوامر", "أوامر"], show_commands_panel))
-    app.add_handler(CommandHandler("games", massive_games_menu))
+    app.add_handler(CommandHandler("start", tb_commands_panel))
+    app.add_handler(CommandHandler(["الاوامر", "الأوامر", "اوامر", "أوامر"], tb_commands_panel))
+    app.add_handler(CommandHandler("pin", tb_pin_command))
+    app.add_handler(CommandHandler("unpin", tb_unpin_command))
+    app.add_handler(CommandHandler("profile", tb_profile_command))
+    app.add_handler(CommandHandler("mute", tb_mute_command))
+    app.add_handler(CommandHandler("unmute", tb_unmute_command))
+    app.add_handler(CommandHandler("ban", tb_ban_command))
+    app.add_handler(CommandHandler("unban", tb_unban_command))
 
-    app.add_handler(MessageHandler(filters.Regex("^(اضف رد|اضف امر|حذف رد|حذف امر|الغاء رد|الغاء امر)$"), custom_commands_handler))
+    app.add_handler(CallbackQueryHandler(tb_callbacks_handler, pattern="^tb_"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, tb_message_router))
 
-    app.add_handler(CallbackQueryHandler(panel_callback_query, pattern="^p_|^back_p$"))
-    app.add_handler(CallbackQueryHandler(massive_games_callback, pattern="^mg_"))
-    app.add_handler(CallbackQueryHandler(show_commands_panel, pattern="^games_menu$"))
-
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, massive_message_handler))
-
-    logger.info("🚀 سورس اندريس الضخم والعملاق يعمل بكفاءة تامة...")
+    logger.info("🚀 سورس تي بي (Tb) الإصدار 7.0 الأسطوري يعمل بكفاءة تامة وبدون ردود عشوائية...")
     while True:
         try:
             app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
