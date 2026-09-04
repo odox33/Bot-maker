@@ -112,7 +112,7 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
-# --- خريطة ربط الأوامر بالأقفال الداخلية ---
+# --- خريطة القفل والفتح الداخلية ---
 LOCK_COMMANDS_MAP = {
     "التاك": "lock_tag", "تاك": "lock_tag",
     "القنوات": "lock_fwd_channel", "قنوات": "lock_fwd_channel",
@@ -184,7 +184,7 @@ def toggle_feature_state(chat_id, feature_key):
     set_feature_state(chat_id, feature_key, new_state)
     return new_state
 
-# --- الأزرار الشفافة الرئيسية (من 1 إلى 6 مثل الصورة تماماً) ---
+# --- لوحات الأزرار الشفافة الأقسام الستة ---
 def get_main_commands_menu():
     keyboard = [
         [
@@ -286,7 +286,7 @@ def get_private_start_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- معالج الرسائل والأوامر الشامل ---
+# --- معالجة الرسائل والأوامر بالكروب والخاص ---
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -439,7 +439,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text(f"❌ **تم تنزيل العضو وإرجاع رتبته إلى (عضو عادي):** {target_user.first_name}")
             return
 
-# --- معالج الأزرار الشفافة ---
+# --- معالجة الأزرار الشفافة ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
