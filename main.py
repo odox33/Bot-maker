@@ -175,7 +175,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("• 1 •", callback_data="sec_1"), InlineKeyboardButton("• 2 •", callback_data="sec_2")],
             [InlineKeyboardButton("• 3 •", callback_data="sec_3")],
-            [InlineKeyboardButton("• 6 •", callback_data="sec_6")]
+            [InlineKeyboardButton("• 6 •", callback_data="sec_6")],
+            [InlineKeyboardButton("• القائمه الرئيسيه •", callback_data="back_home")]
         ])
         await query.edit_message_text(text, reply_markup=keyboard)
 
@@ -205,7 +206,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("• 1 •", callback_data="sec_1"), InlineKeyboardButton("• 2 •", callback_data="sec_2")],
             [InlineKeyboardButton("• 3 •", callback_data="sec_3")],
-            [InlineKeyboardButton("• 5 •", callback_data="sec_5"), InlineKeyboardButton("• 6 •", callback_data="sec_6")]
+            [InlineKeyboardButton("• 5 •", callback_data="sec_5"), InlineKeyboardButton("• 6 •", callback_data="sec_6")],
+            [InlineKeyboardButton("• القائمه الرئيسيه •", callback_data="back_home")]
         ])
         await query.edit_message_text(text, reply_markup=keyboard)
 
@@ -252,13 +254,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=keyboard)
 
 def main():
+
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     
     application.add_handler(CommandHandler(["start", "الاوامر", "البداية"], start_command))
     application.add_handler(CallbackQueryHandler(callback_handler))
     
     print("Source TP Bot started successfully!")
-    application.run_polling(drop_pending_updates=True)
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
