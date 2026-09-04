@@ -114,7 +114,36 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
-# --- قائمة ميزات التفعيل والتعطيل (أكثر من 50 ميزة) ---
+# --- خريطة ربط الكلمات بالنظام الداخلي للأقفال ---
+LOCK_COMMANDS_MAP = {
+    "التاك": "lock_tag", "تاك": "lock_tag",
+    "القنوات": "lock_fwd_channel", "قنوات": "lock_fwd_channel",
+    "الصور": "lock_photos", "صور": "lock_photos",
+    "الروابط": "lock_links", "روابط": "lock_links",
+    "التكرار": "lock_spam", "تكرار": "lock_spam",
+    "الفيديو": "lock_videos", "فيديو": "lock_videos",
+    "الدخول": "lock_service", "دخول": "lock_service",
+    "الاضافه": "lock_bots", "اضافه": "lock_bots",
+    "الاغاني": "lock_audio", "اغاني": "lock_audio",
+    "الصوت": "lock_audio_record", "صوت": "lock_audio_record",
+    "الملفات": "lock_documents", "ملفات": "lock_documents",
+    "التفليش": "lock_flood", "تفليش": "lock_flood",
+    "الدردشه": "lock_channels_msg", "دردشه": "lock_channels_msg",
+    "الجهات": "lock_contacts", "جهات": "lock_contacts",
+    "السيلفي": "lock_video_note", "سيلفي": "lock_video_note",
+    "التثبيت": "lock_pinned", "تثبيت": "lock_pinned",
+    "البوتات": "lock_bots", "بوتات": "lock_bots",
+    "التوجيه": "lock_forward", "توجيه": "lock_forward",
+    "التعديل": "lock_edit", "تعديل": "lock_edit",
+    "المعرفات": "lock_username", "معرفات": "lock_username",
+    "الكيبورد": "lock_inline", "كيبورد": "lock_inline",
+    "الانجليزيه": "lock_english", "انجليزيه": "lock_english",
+    "الملصقات": "lock_stickers", "ملصقات": "lock_stickers",
+    "الاشعارات": "lock_service", "اشعارات": "lock_service",
+    "الماركداون": "lock_markdown", "ماركداون": "lock_markdown",
+    "المتحركه": "lock_gifs", "متحركه": "lock_gifs"
+}
+
 FEATURES_LIST = {
     "lock_links": "قفل الروابط", "lock_username": "قفل المعرفات (@)", "lock_bots": "قفل البوتات",
     "lock_forward": "قفل التوجيه", "lock_photos": "قفل الصور", "lock_videos": "قفل الفيديوهات",
@@ -127,7 +156,7 @@ FEATURES_LIST = {
     "lock_phone": "قفل أرقام الهواتف", "lock_visa": "قفل البطاقات", "lock_currency": "قفل العملات",
     "lock_spam": "قفل التكرار (Spam)", "lock_flood": "قفل التثاقل", "lock_caps": "قفل الحروف الكبيرة",
     "lock_emoji": "قفل الإيموجي المفرط", "lock_fwd_channel": "قفل توجيه القنوات", "lock_fwd_user": "قفل توجيه الأشخاص",
-    "lock_pinned": "قفل التثبيت", "lock_name_change": "قفل تغيير اسم المجموعة", "lock_photo_change": "قفل صورة المجموعة",
+    "lock_pinned": "qفل التثبيت", "lock_name_change": "قفل تغيير اسم المجموعة", "lock_photo_change": "قفل صورة المجموعة",
     "lock_audio_chat": "قفل المكالمات الصوتية", "lock_channels_msg": "قفل رسايل الكروبات", "lock_badwords": "قفل الكلمات البذيئة",
     "lock_links_tg": "قفل روابط تليجرام", "lock_html": "قفل أكواد HTML", "lock_quotes": "قفل الاقتباسات",
     "lock_audio_record": "قفل تسجيل الصوت", "lock_video_note": "قفل رسائل الفيديو", "lock_inline_bot": "قفل البوتات الخارجية",
@@ -144,17 +173,20 @@ def is_feature_enabled(chat_id, feature_key):
         return row[0] == 1
     return True
 
+def set_feature_state(chat_id, feature_key, state):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO group_settings (chat_id, feature_key, is_enabled) VALUES (?, ?, ?)", (chat_id, feature_key, state))
+    conn.commit()
+    conn.close()
+
 def toggle_feature_state(chat_id, feature_key):
     current = is_feature_enabled(chat_id, feature_key)
     new_state = 0 if current else 1
-    conn = sqlite3.connect("bot_database.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO group_settings (chat_id, feature_key, is_enabled) VALUES (?, ?, ?)", (chat_id, feature_key, new_state))
-    conn.commit()
-    conn.close()
+    set_feature_state(chat_id, feature_key, new_state)
     return new_state
 
-# --- لوحات الأزرار الشفافة الرئيسية للكروبات (نفس الصورة رقم 8 بالضبط) ---
+# --- لوحات الأزرار الشفافة الرئيسية للكروبات ---
 def get_main_group_menu():
     keyboard = [
         [
@@ -332,6 +364,22 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             activate_group(chat.id, chat.title)
             await message.reply_text("✅ **تم تفعيل سورس Tp والحماية الشاملة في هذه المجموعة بنجاح!**\nاكتب `الاوامر` لإظهار الأزرار الشفافة.")
             return
+
+        # --- تشغيل أوامر القفل والفتح المباشرة في الكروب (مثل: قفل التاك، فتح الصور...) ---
+        if text_clean.startswith("قفل ") or text_clean.startswith("فتح "):
+            parts = text_clean.split(" ", 1)
+            action = parts[0]  # قفل أو فتح
+            target_name = parts[1].strip()
+
+            if target_name in LOCK_COMMANDS_MAP:
+                feat_key = LOCK_COMMANDS_MAP[target_name]
+                new_state = 0 if action == "قفل" else 1
+                set_feature_state(chat.id, feat_key, new_state)
+                
+                action_text = "قفل 🔒" if action == "قفل" else "فتح 🔓"
+                feat_display = FEATURES_LIST.get(feat_key, target_name)
+                await message.reply_text(f"☑️ **تم {action_text} ({feat_display}) بنجاح بواسطة سورس Tp.**")
+                return
 
         reply = message.reply_to_message
         target_user = reply.from_user if reply else user
@@ -566,7 +614,7 @@ def main():
     PORT = int(os.environ.get("PORT", "10000"))
     RENDER_URL = "https://bot-maker-1-709e.onrender.com"
 
-    logger.info("Tp Source v5.1 started with Lock Menu and Pagination...")
+    logger.info("Tp Source v5.1 started with Direct Lock Commands Enabled...")
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
