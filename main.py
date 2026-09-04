@@ -252,12 +252,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("• القائمه الرئيسيه •", callback_data="back_home")]
         ])
         await query.edit_message_text(text, reply_markup=keyboard)
-
 def main():
-
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    application.add_handler(CommandHandler(["start", "الاوامر", "البداية"], start_command))
+    application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CallbackQueryHandler(callback_handler))
     
     print("Source TP Bot started successfully!")
