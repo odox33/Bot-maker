@@ -286,7 +286,7 @@ def get_private_start_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- معالجة الرسائل والأوامر بالكروب والخاص ---
+# --- معالجة الرسائل والأوامر الشاملة (تشغيل الكل) ---
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -348,6 +348,37 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("✅ **تم تفعيل سورس Tp والحماية الشاملة في هذه المجموعة بنجاح!**\nاكتب `الاوامر` لإظهار القائمة الرئيسية.")
             return
 
+        # أمر الايدي (معالجة الايدي والشخص المردود عليه)
+        reply = message.reply_to_message
+        target_user = reply.from_user if reply else user
+
+        if text_clean in ["الايدي", "ايدي", "id", "الآيدي"]:
+            conn = sqlite3.connect("bot_database.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT messages_count, points, photos_count, level FROM user_stats WHERE user_id = ?", (target_user.id,))
+            stats = cursor.fetchone()
+            conn.close()
+            
+            msgs = stats[0] if stats else 1
+            pts = stats[1] if stats else 2
+            photos = stats[2] if stats else 0
+            lvl = stats[3] if stats else "أسطورة الكروب 🔥"
+            target_role = get_user_role(target_user.id, target_user.username)
+
+            id_text = (
+                f"• أهلاً بك عزيزي معلومات ايديك :\n\n"
+                f"• الاسم : {target_user.full_name}\n"
+                f"• المعرف : @{target_user.username if target_user.username else 'لا يوجد'}\n"
+                f"• الايدي : `{target_user.id}`\n"
+                f"• الرتبة : {target_role}\n"
+                f"• التفاعل : `{msgs}` رسالة\n"
+                f"• النقاط : `{pts}` نقطة\n"
+                f"• الصور : `{photos}` صورة\n"
+                f"• اللفل : {lvl}"
+            )
+            await message.reply_text(id_text)
+            return
+
         if text_clean.startswith("قفل ") or text_clean.startswith("فتح "):
             parts = text_clean.split(" ", 1)
             action = parts[0]
@@ -362,9 +393,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 feat_display = FEATURES_LIST.get(feat_key, target_name)
                 await message.reply_text(f"☑️ **تم {action_text} ({feat_display}) بنجاح بواسطة سورس Tp.**")
                 return
-
-        reply = message.reply_to_message
-        target_user = reply.from_user if reply else user
 
         if text_clean in ["الاوامر", "الأوامر", "اوامر"]:
             commands_main_text = (
