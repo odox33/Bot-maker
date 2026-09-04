@@ -4,15 +4,18 @@ import sqlite3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
+# إعداد التسجيل والأخطاء
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
+# --- إعدادات البوت والحقوق الأساسية ---
 TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
-DEV_USERNAME = "odox3"
+DEV_USERNAME = "odox3"       # ◄--- حقوقك واسم معرفك هنا
 CHANNEL_USERNAME = "@odox6"
 
+# --- تهيئة قواعد البيانات (SQLite) ---
 def init_db():
     conn = sqlite3.connect("bot_database.db", timeout=30.0)
     cursor = conn.cursor()
@@ -112,6 +115,7 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
+# --- واجهات الأزرار التفاعلية (Inline Keyboards) ---
 def get_main_commands_menu():
     keyboard = [
         [InlineKeyboardButton("• 1 .", callback_data="menu_page1"), InlineKeyboardButton("• 2 .", callback_data="menu_page2")],
@@ -132,6 +136,7 @@ def get_admins_menu_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
+# --- معالج رسائل وأوامر السورس الشاملة ---
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -150,7 +155,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_user(user.id, user.username, user.full_name)
         if text_clean == "/start":
             await message.reply_text(
-                f"تم تشغيل بوتك عزيزي المستخدم 👾\n• البوت : @{context.bot.username}\n• المطور : @{DEV_USERNAME}\n\nاختر من الأوامر بالأسفل:",
+                f"أهلاً بك في بوت المصنع المطور 👾\n• مطور السورس الأساسي : @{DEV_USERNAME}\n• قناة التحديثات : {CHANNEL_USERNAME}\n\nاختر من الأوامر بالأسفل للبدء:",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("تفعيل المصنع", callback_data="make_free_bot")]])
             )
         return
@@ -161,14 +166,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "تفعيل":
             activate_group(chat.id, chat.title)
-            await message.reply_text("✅ **تم تفعيل سورس Tp والحماية الشاملة في هذه المجموعة بنجاح!**")
+            await message.reply_text(f"✅ **تم تفعيل سورس Tp بواسطة المطور @{DEV_USERNAME} والحماية الشاملة في هذه المجموعة بنجاح!**")
             return
 
         reply = message.reply_to_message
         target_user = reply.from_user if reply else user
         is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title or "مدير" in role_title or "ادمن" in role_title
 
-        # --- تشغيل كافة أوامر المشرفين والأوامر المذكورة في القائمة بالكامل ---
+        # --- تنفيذ أوامر المشرفين والأوامر بالكامل دون استثناء ---
         if text_clean == "نزلني":
             remove_user_role(user.id)
             await message.reply_text(f"🔻 **تم تنزيل رتبتك وأصبحت عضواً عادياً:** {user.first_name}")
@@ -196,7 +201,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if text_clean == "الاعدادات" and is_elevated:
-            await message.reply_text("⚙️ **لوحة إعدادات المجموعة الحالية:**\n• الحماية العامة: مفعلة\n• الردود التلقائية: مفعلة\n• منع الروابط: مفعل")
+            await message.reply_text(f"⚙️ **لوحة إعدادات المجموعة الحالية (حقوق المطور @{DEV_USERNAME}):**\n• الحماية العامة: مفعلة\n• الردود التلقائية: مفعلة\n• منع الروابط: مفعل")
             return
 
         if text_clean == "القوائم":
@@ -228,7 +233,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if text_clean in ["الايدي", "ايدي", "id", "تعيين الايدي"]:
-            await message.reply_text(f"👤 **ايديك:** `{target_user.id}`\n👑 **رتبتك:** {role_title}")
+            await message.reply_text(f"👤 **ايديك:** `{target_user.id}`\n👑 **رتبتك:** {role_title}\n💻 **المطور:** @{DEV_USERNAME}")
             return
 
         if text_clean == "كتم" and is_elevated and reply:
@@ -257,7 +262,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean in ["الاوامر", "الأوامر", "اوامر"]:
             commands_main_text = (
-                "• اليك اوامر البوت 5.1 .\n\n"
+                f"• اليك اوامر بوتات السورس 5.1 (حقوق @{DEV_USERNAME}) .\n\n"
                 "• ( م 1 ) ↬ اوامر الحمايه\n"
                 "• ( م 2 ) ↬ اوامر المشرفين\n"
                 "• ( م 3 ) ↬ اوامر التفعيلات\n"
@@ -268,6 +273,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text(commands_main_text, reply_markup=get_main_commands_menu())
             return
 
+# --- معالج الأزرار والقوائم ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -275,7 +281,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "back_to_main_cmds":
         commands_main_text = (
-            "• اليك اوامر البوت 5.1 .\n\n"
+            f"• اليك اوامر بوتات السورس 5.1 (حقوق @{DEV_USERNAME}) .\n\n"
             "• ( م 1 ) ↬ اوامر الحمايه\n"
             "• ( م 2 ) ↬ اوامر المشرفين\n"
             "• ( م 3 ) ↬ اوامر التفعيلات\n"
@@ -310,12 +316,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text="🗑️ **أوامر المسح والتنظيف:**\n• مسح الرسائل، تنظيف القوائم، وتصفير الإحصائيات.", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page5":
-        await query.edit_message_text(text="💻 **أوامر المطورين:**\n• التحكم الشامل بالسورس وربط البوتات.", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(f"💻 **أوامر المطورين (المطور الأساسي: @{DEV_USERNAME}):**\n• التحكم الشامل بالسورس وربط البوتات.", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page6":
         await query.edit_message_text(text="🎮 **أوامر الترفيه:**\n• الألعاب والمسابقات والنسب وتفاعل الكروب.", reply_markup=get_sub_back_keyboard())
         return
 
+# --- تشغيل البوت عبر الويب هوك (Webhooks) ---
 def main():
     init_db()
     application = Application.builder().token(TOKEN).build()
