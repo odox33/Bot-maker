@@ -267,9 +267,15 @@ async def callback_handler(client, callback_query: CallbackQuery):
         await callback_query.message.edit_text(MAIN_TEXT, reply_markup=MAIN_KEYBOARD)
 
 async def main():
+    print("Starting bot manually...")
     await app.start()
     print("Bot started successfully!")
-    await asyncio.Event().wait()
+    await asyncio.Future()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_loop_exit = False
+    try:
+        loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        pass
