@@ -1,6 +1,7 @@
 import os
 import asyncio
 from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 try:
     asyncio.get_event_loop()
@@ -18,48 +19,84 @@ app = Client(
     bot_token=BOT_TOKEN
 )
 
-@app.on_message(filters.command("start"))
+# القائمة الرئيسية والأزرار
+@app.on_message(filters.command(["start", "الاوامر", "البداية"]))
 async def start_command(client, message):
-    await message.reply_text(
-        "👋 **أهلاً بك في سورس تي بي لصانع البوتات والخدمات**\n\n"
-        "🤖 **البوت يعمل الآن 24/7 بنجاح على سحابة Render**\n\n"
-        "📌 **الأوامر المتاحة:**\n"
-        "• `/id` - لعرض معلوماتك أو الشخص.\n"
-        "• `/ban` - لطرد أو حظر عضو بالمجموعة.\n"
-        "• `/make` - لصنع بوت جديدة.\n"
-        "• `/games` - الألعاب الترفيهية.\n"
-        "• `/youtube` - للبحث في اليوتيوب."
+    text = (
+        " Tb \n"
+        "الاوامر\n\n"
+        "▫️ - اليك اوامر سورس تي بي ⚡️⚡️\n\n"
+        "▫️ - [ م 1 ] ↜ اوامر الحمايه\n"
+        "▫️ - [ م 2 ] ↜ اوامر المشرفين\n"
+        "▫️ - [ م 3 ] ↜ اوامر التفعيلات\n"
+        "▫️ - [ م 4 ] ↜ اوامر المسح\n"
+        "▫️ - [ م 5 ] ↜ اوامر المطورين\n"
+        "▫️ - [ م 6 ] ↜ اوامر الترفيه"
     )
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("• 1 •", callback_data="sec_1"), InlineKeyboardButton("• 2 •", callback_data="sec_2")],
+        [InlineKeyboardButton("• 3 •", callback_data="sec_3")],
+        [InlineKeyboardButton("• 4 •", callback_data="sec_4"), InlineKeyboardButton("• 5 •", callback_data="sec_5")],
+        [InlineKeyboardButton("• 6 •", callback_data="sec_6")]
+    ])
+    
+    await message.reply_text(text, reply_markup=keyboard)
 
-@app.on_message(filters.command("id"))
-async def id_command(client, message):
-    user = message.from_user
-    await message.reply_text(
-        f"🆔 **معلومات الحساب:**\n"
-        f"• الاسم : {user.first_name}\n"
-        f"• الأي دي : `{user.id}`\n"
-        f"• اليوزر : @{user.username if user.username else 'لا يوجد'}"
-    )
-
-@app.on_message(filters.command("ban") & filters.group)
-async def ban_command(client, message):
-    if not message.reply_to_message:
-        return await message.reply_text("⚠️ يرجى الرد على رسالة العضو المراد حظره!")
-    user_id = message.reply_to_message.from_user.id
-    await message.chat.ban_member(user_id)
-    await message.reply_text("✅ تم حظر العضو بنجاح!")
-
-@app.on_message(filters.command("make"))
-async def make_bot(client, message):
-    await message.reply_text("🛠 **قريباً سيتم تفعيل قسم صنع النسخ والخدمات في سورس تي بي.**")
-
-@app.on_message(filters.command("games"))
-async def games_menu(client, message):
-    await message.reply_text("🎮 **أهلاً بك في الألعاب الترفيهية ضمن سورس تي بي.**")
-
-@app.on_message(filters.command("youtube"))
-async def youtube_search(client, message):
-    await message.reply_text("📺 **قسم البحث في اليوتيوب ضمن سورس تي بي.**")
+# معالجة الضغط على الأزرار الشفافة
+@app.on_callback_query()
+async def callback_handler(client, callback_query: CallbackQuery):
+    data = callback_query.data
+    
+    if data == "sec_1":
+        await callback_query.message.edit_text(
+            "🛡 **قائمة اوامر الحمايه (م 1):**\n\n• قفل الكصر\n• قفل الروابط\n• قفل التوجيه\n• منع التكرار",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« رجوع", callback_data="back_home")]])
+        )
+    elif data == "sec_2":
+        await callback_query.message.edit_text(
+            "👮‍♂️ **قائمة اوامر المشرفين (م 2):**\n\n• كتم / اسكات\n• حظر / طرد\n• تثبيت رسالة\n• رفع مشرف",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« رجوع", callback_data="back_home")]])
+        )
+    elif data == "sec_3":
+        await callback_query.message.edit_text(
+            "⚙️ **قائمة اوامر التفعيلات (م 3):**\n\n• تفعيل الردود\n• تفعيل الترحيب\n• تفعيل الالعاب",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« رجوع", callback_data="back_home")]])
+        )
+    elif data == "sec_4":
+        await callback_query.message.edit_text(
+            "🗑 **قائمة اوامر المسح (م 4):**\n\n• مسح المكتومين\n• مسح المحظورين\n• مسح الإداريين",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« رجوع", callback_data="back_home")]])
+        )
+    elif data == "sec_5":
+        await callback_query.message.edit_text(
+            "⚡️ **قائمة اوامر المطورين (م 5):**\n\n• اذاعة عامة\n• احصائيات البوت\n• تحديث السورس",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« رجوع", callback_data="back_home")]])
+        )
+    elif data == "sec_6":
+        await callback_query.message.edit_text(
+            "🎮 **قائمة اوامر الترفيه (م 6):**\n\n• قسم الالعاب\n• المقرعة\n• زارف / صيد",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« رجوع", callback_data="back_home")]])
+        )
+    elif data == "back_home":
+        text = (
+            " Tb \n"
+            "الاوامر\n\n"
+            "▫️ - اليك اوامر سورس تي بي ⚡️⚡️\n\n"
+            "▫️ - [ م 1 ] ↜ اوامر الحمايه\n"
+            "▫️ - [ م 2 ] ↜ اوامر المشرفين\n"
+            "▫️ - [ م 3 ] ↜ اوامر التفعيلات\n"
+            "▫️ - [ م 4 ] ↜ اوامر المسح\n"
+            "▫️ - [ م 5 ] ↜ اوامر المطورين\n"
+            "▫️ - [ م 6 ] ↜ اوامر الترفيه"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("• 1 •", callback_data="sec_1"), InlineKeyboardButton("• 2 •", callback_data="sec_2")],
+            [InlineKeyboardButton("• 3 •", callback_data="sec_3")],
+            [InlineKeyboardButton("• 4 •", callback_data="sec_4"), InlineKeyboardButton("• 5 •", callback_data="sec_5")],
+            [InlineKeyboardButton("• 6 •", callback_data="sec_6")]
+        ])
+        await callback_query.message.edit_text(text, reply_markup=keyboard)
 
 if __name__ == "__main__":
     app.run()
