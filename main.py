@@ -12,7 +12,7 @@ API_HASH = "dbba65547d24e32dd37ac3dbm2885ef"
 BOT_TOKEN = "8704690798:AAEshhQ2o0qFuy6UwHbVGWq-a"
 
 app = Client(
-    "BotMaker",
+    "SourceTPBot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
@@ -63,4 +63,3 @@ async def youtube_search(client, message):
 
 if __name__ == "__main__":
     app.run()
-
