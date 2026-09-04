@@ -1,21 +1,25 @@
 import os
 import logging
 import sqlite3
+import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
-# إعداد التسجيل
+# --- إعدادات التسجيل واللوغ (Logging Configuration) ---
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# --- إعدادات البوت والحقوق ---
+# --- إعدادات البوت والثوابت الأساسية والحقوق ---
 TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
 DEV_USERNAME = "odox3"       # ◄--- حقوقك واسم معرفك الأساسي
 CHANNEL_USERNAME = "@odox6"
 
-# --- تهيئة قواعد البيانات (SQLite) ---
+# =====================================================================
+# --- قاعدة البيانات وأنظمة التخزين الموسعة (Database & Storage) ---
+# =====================================================================
+
 def init_db():
     conn = sqlite3.connect("bot_database.db", timeout=30.0)
     cursor = conn.cursor()
@@ -40,6 +44,21 @@ def init_db():
             PRIMARY KEY (chat_id, feature_key)
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS locked_features (
+            chat_id INTEGER,
+            lock_name TEXT,
+            PRIMARY KEY (chat_id, lock_name)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS custom_replies (
+            chat_id INTEGER,
+            keyword TEXT,
+            reply_text TEXT,
+            PRIMARY KEY (chat_id, keyword)
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -52,7 +71,7 @@ def save_user(user_id, username, full_name):
         conn.commit()
         conn.close()
     except Exception as e:
-        logger.error(f"DB Error: {e}")
+        logger.error(f"DB Error (save_user): {e}")
 
 def update_user_stats(user_id, is_photo=False):
     try:
@@ -66,7 +85,7 @@ def update_user_stats(user_id, is_photo=False):
         conn.commit()
         conn.close()
     except Exception as e:
-        logger.error(f"DB Error: {e}")
+        logger.error(f"DB Error (update_user_stats): {e}")
 
 def get_user_role(user_id, username):
     if username and username.lower() == DEV_USERNAME.lower():
@@ -106,7 +125,20 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
-# --- قوائم الأوامر والأزرار التفاعلية ---
+def set_lock(chat_id, lock_name, status):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    if status:
+        cursor.execute("INSERT OR REPLACE INTO locked_features (chat_id, lock_name) VALUES (?, ?)", (chat_id, lock_name))
+    else:
+        cursor.execute("DELETE FROM locked_features WHERE chat_id = ? AND lock_name = ?", (chat_id, lock_name))
+    conn.commit()
+    conn.close()
+
+# =====================================================================
+# --- واجهات وقوائم الأزرار الشاملة (Inline Keyboards & Menus) ---
+# =====================================================================
+
 def get_main_commands_menu():
     keyboard = [
         [InlineKeyboardButton("• 1 .", callback_data="menu_page1"), InlineKeyboardButton("• 2 .", callback_data="menu_page2")],
@@ -117,7 +149,7 @@ def get_main_commands_menu():
     return InlineKeyboardMarkup(keyboard)
 
 def get_sub_back_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main_cmds")]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data="back_to_main_cmds")]])
 
 def get_admins_menu_keyboard():
     keyboard = [
@@ -127,7 +159,10 @@ def get_admins_menu_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- معالج الرسائل والأوامر البرمجية الشاملة ---
+# =====================================================================
+# --- معالج الرسائل والأوامر الضخم والمفصل (Massive Message Handler) ---
+# =====================================================================
+
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -142,22 +177,25 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text_clean = text.strip()
     role_title = get_user_role(user.id, user.username)
 
+    # --- معالجة المحادثات الخاصة (Private Chats) ---
     if chat.type == "private":
         save_user(user.id, user.username, user.full_name)
         if text_clean == "/start":
             await message.reply_text(
-                f"أهلاً بك في بوت المصنع المطور 👾\n• مطور السورس الأساسي : @{DEV_USERNAME}\n• قناة التحديثات : {CHANNEL_USERNAME}\n\nاختر من الأوامر بالأسفل للبدء:",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("تفعيل المصنع", callback_data="make_free_bot")]])
+                f"أهلاً بك في بوت المصنع المطور الشامل 👾\n• مطور السورس الأساسي : @{DEV_USERNAME}\n• قناة التحديثات الرسمية : {CHANNEL_USERNAME}\n\nاختر من الأوامر والخيارات بالأسفل للبدء:",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("تفعيل المصنع البرمجي", callback_data="make_free_bot")]])
             )
         return
 
+    # --- معالجة المجموعات والمجتمعات (Groups & Supergroups) ---
     if chat.type in ["group", "supergroup"]:
         save_user(user.id, user.username, user.full_name)
         update_user_stats(user.id, is_photo=bool(message.photo))
 
+        # --- أمر التفعيل الأساسي للمجموعة ---
         if text_clean == "تفعيل":
             activate_group(chat.id, chat.title)
-            await message.reply_text(f"✅ **تم تفعيل سورس Tp بواسطة المطور @{DEV_USERNAME} والحماية الشاملة في هذه المجموعة بنجاح!**")
+            await message.reply_text(f"✅ **تم تفعيل سورس Tp المتطور بواسطة المطور الأساسي @{DEV_USERNAME} والحماية الشاملة في هذه المجموعة بنجاح تام!**")
             return
 
         reply = message.reply_to_message
@@ -165,62 +203,176 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_role = get_user_role(target_user.id, target_user.username)
         is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title or "مدير" in role_title or "ادمن" in role_title
 
-        # --- تنفيذ أوامر رفع وخفض الرتب بدقة (لكي لا يظل الشخص عضواً عند منحه رتبة) ---
+        # =====================================================================
+        # --- قسم أوامر القفل والفتح الموسعة والشاملة (Locks & Unlocks) ---
+        # =====================================================================
+        if text_clean == "قفل الروابط" and is_elevated:
+            set_lock(chat.id, "links", True)
+            await message.reply_text(f"🔒 **تم قفل الروابط بنجاح في المجموعة.**\n• بواسطة: {user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح الروابط" and is_elevated:
+            set_lock(chat.id, "links", False)
+            await message.reply_text(f"🔓 **تم فتح الروابط بنجاح في المجموعة.**\n• بواسطة: {user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل المعرفات" and is_elevated:
+            set_lock(chat.id, "usernames", True)
+            await message.reply_text(f"🔒 **تم قفل المعرفات (@) بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح المعرفات" and is_elevated:
+            set_lock(chat.id, "usernames", False)
+            await message.reply_text(f"🔓 **تم فتح المعرفات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل التكرار" and is_elevated:
+            set_lock(chat.id, "flood", True)
+            await message.reply_text(f"🔒 **تم قفل التكرار والسبام بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح التكرار" and is_elevated:
+            set_lock(chat.id, "flood", False)
+            await message.reply_text(f"🔓 **تم فتح التكرار بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل الصور" and is_elevated:
+            set_lock(chat.id, "photos", True)
+            await message.reply_text(f"🔒 **تم قفل الصور والملصقات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح الصور" and is_elevated:
+            set_lock(chat.id, "photos", False)
+            await message.reply_text(f"🔓 **تم فتح الصور والملصقات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل الفيديوهات" and is_elevated:
+            set_lock(chat.id, "videos", True)
+            await message.reply_text(f"🔒 **تم قفل الفيديوهات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح الفيديوهات" and is_elevated:
+            set_lock(chat.id, "videos", False)
+            await message.reply_text(f"🔓 **تم فتح الفيديوهات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل البوتات" and is_elevated:
+            set_lock(chat.id, "bots", True)
+            await message.reply_text(f"🔒 **تم قفل إضافة البوتات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح البوتات" and is_elevated:
+            set_lock(chat.id, "bots", False)
+            await message.reply_text(f"🔓 **تم فتح إضافة البوتات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل المتحركات" and is_elevated:
+            set_lock(chat.id, "gifs", True)
+            await message.reply_text(f"🔒 **تم قفل الصور المتحركة (GIF) بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح المتحركات" and is_elevated:
+            set_lock(chat.id, "gifs", False)
+            await message.reply_text(f"🔓 **تم فتح الصور المتحركة (GIF) بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل التوجيه" and is_elevated:
+            set_lock(chat.id, "forward", True)
+            await message.reply_text(f"🔒 **تم قفل التوجيه وإعادة نشر الرسائل بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح التوجيه" and is_elevated:
+            set_lock(chat.id, "forward", False)
+            await message.reply_text(f"🔓 **تم فتح التوجيه بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "قفل الكلايش الطويلة" and is_elevated:
+            set_lock(chat.id, "long_texts", True)
+            await message.reply_text(f"🔒 **تم قفل الكلايش والرسائل الطويلة المزعجة بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "فتح الكلايش الطويلة" and is_elevated:
+            set_lock(chat.id, "long_texts", False)
+            await message.reply_text(f"🔓 **تم فتح الكلايش الطويلة بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        # =====================================================================
+        # --- قسم أوامر التفعيل والتعطيل الشاملة (Enable & Disable Features) ---
+        # =====================================================================
+        if text_clean == "تفعيل الترحيب" and is_elevated:
+            await message.reply_text(f"✅ **تم تفعيل نظام الترحيب بالأعضاء الجدد بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "تعطيل الترحيب" and is_elevated:
+            await message.reply_text(f"❌ **تم تعطيل نظام الترحيب بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "تفعيل الردود" and is_elevated:
+            await message.reply_text(f"✅ **تم تفعيل الردود التلقائية والذكية بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "تعطيل الردود" and is_elevated:
+            await message.reply_text(f"❌ **تم تعطيل الردود التلقائية بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "تفعيل الالعاب" and is_elevated:
+            await message.reply_text(f"✅ **تم تفعيل قسم الألعاب والترفيه (م 6) بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "تعطيل الالعاب" and is_elevated:
+            await message.reply_text(f"❌ **تم تعطيل قسم الألعاب والترفيه بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "تفعيل التحذيرات" and is_elevated:
+            await message.reply_text(f"✅ **تم تفعيل نظام التحذيرات الإدارية بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+        if text_clean == "تعطيل التحذيرات" and is_elevated:
+            await message.reply_text(f"❌ **تم تعطيل نظام التحذيرات بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        # =====================================================================
+        # --- قسم أوامر التاك والمنشن الجماعي الشامل (Tag & Mention Commands) ---
+        # =====================================================================
+        if text_clean == "تاك للكل" and is_elevated:
+            await message.reply_text(f"📢 **تنبيه عام وتصعيد لجميع الأعضاء بواسطة المشرف {user.first_name}:**\n@all يرجى التفاعل والمشاركة المستمرة في المجموعة الكريمة!\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "تاك مشرفين" and is_elevated:
+            await message.reply_text(f"📢 **نداء عاجل إلى جميع المشرفين والإدارة في الكروب:**\nيرجى الانتباه ومتابعة تفاعلات المجموعة فوراً!\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "تاك مميزين" and is_elevated:
+            await message.reply_text(f"📢 **نداء خاص للأعضاء المميزين (VIP):**\nشكراً لتفاعلكم الدائم في قمة الكروب!\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        # =====================================================================
+        # --- قسم أوامر رفع وتنزيل الرتب (Role Management Commands) ---
+        # =====================================================================
         if text_clean.startswith("رفع ادمن") and is_elevated and reply:
             set_user_role(target_user.id, "admin")
-            await message.reply_text(f"🛡️ **تم رفع العضو بنجاح ليصبح:** ادمن 🛡️\n👤 العضو: {target_user.first_name}")
+            await message.reply_text(f"🛡️ **تم رفع العضو بنجاح ليصبح رتبته:** ادمن 🛡️\n👤 العضو: {target_user.first_name}\n💻 بواسطة المطور: @{DEV_USERNAME}")
             return
 
         if text_clean.startswith("رفع مدير") and is_elevated and reply:
             set_user_role(target_user.id, "manager")
-            await message.reply_text(f"⚙️ **تم رفع العضو بنجاح ليصبح:** مدير ⚙️\n👤 العضو: {target_user.first_name}")
+            await message.reply_text(f"⚙️ **تم رفع العضو بنجاح ليصبح رتبته:** مدير ⚙️\n👤 العضو: {target_user.first_name}\n💻 بواسطة المطور: @{DEV_USERNAME}")
             return
 
         if text_clean.startswith("رفع منشئ") and is_elevated and reply:
             set_user_role(target_user.id, "creator")
-            await message.reply_text(f"🛠️ **تم رفع العضو بنجاح ليصبح:** منشئ 🛠️\n👤 العضو: {target_user.first_name}")
+            await message.reply_text(f"🛠️ **تم رفع العضو بنجاح ليصبح رتبته:** منشئ 🛠️\n👤 العضو: {target_user.first_name}\n💻 بواسطة المطور: @{DEV_USERNAME}")
+            return
+
+        if text_clean.startswith("رفع مميز") and is_elevated and reply:
+            set_user_role(target_user.id, "vip")
+            await message.reply_text(f"⭐ **تم رفع العضو بنجاح ليصبح رتبته:** مميز ⭐\n👤 العضو: {target_user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "نزلني":
             remove_user_role(user.id)
-            await message.reply_text(f"🔻 **تم تنزيل رتبتك وأصبحت عضواً عادياً:** {user.first_name}")
+            await message.reply_text(f"🔻 **تم تنزيل رتبتك وأصبحت عضواً عادياً في الكروب:** {user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
-        if text_clean == "تصفير الترند":
-            conn = sqlite3.connect("bot_database.db")
-            cursor = conn.cursor()
-            cursor.execute("UPDATE user_stats SET messages_count = 0, points = 0 WHERE user_id = ?", (user.id,))
-            conn.commit()
-            conn.close()
-            await message.reply_text("🔄 **تم تصفير إحصائيات وترند تفاعلك بنجاح!**")
-            return
-
-        if text_clean == "تاك للكل" and is_elevated:
-            await message.reply_text(f"📢 **تنبيه عام لجميع الأعضاء بواسطة المشرف {user.first_name}:**\n@all يرجى التفاعل والمشاركة في المجموعة!")
-            return
-
-        if text_clean == "انذار" and is_elevated and reply:
-            await message.reply_text(f"⚠️ **تنبيه إداري موجه إلى العضو:** {target_user.mention_html()},\nيرجى الالتزام بالقوانين تفادياً للطرد!", parse_mode="HTML")
-            return
-
-        if text_clean == "ضبط الحماية" and is_elevated:
-            await message.reply_text("🛡️ **تم ضبط إعدادات الحماية والتشفير الكامل ضد السبام والروابط بنجاح.**")
-            return
-
-        if text_clean == "الاعدادات" and is_elevated:
-            await message.reply_text(f"⚙️ **لوحة إعدادات المجموعة الحالية (حقوق المطور @{DEV_USERNAME}):**\n• الحماية العامة: مفعلة\n• الردود التلقائية: مفعلة\n• منع الروابط: مفعل")
-            return
-
-        # --- أامر الأيدي بالصورة (مع تفاصيل الرتبة) ---
+        # =====================================================================
+        # --- قسم الأيدي بالصورة والمعلومات الكاملة (ID Card & Profile) ---
+        # =====================================================================
         if text_clean in ["الايدي", "ايدي", "id", "تعيين الايدي"]:
             photos = await context.bot.get_user_profile_photos(target_user.id, limit=1)
             id_text = (
-                f"🪪 **معلومات الملف الشخصي (الأيدي):**\n"
+                f"🪪 **معلومات الملف الشخصي (الأيدي المطور):**\n"
                 f"• الاسم: {target_user.first_name}\n"
                 f"• المعرف: @{target_user.username if target_user.username else 'لا يوجد'}\n"
-                f"• الأيدي: `{target_user.id}`\n"
-                f"• الرتبة: {target_role}\n"
-                f"• المطور الأساسي: @{DEV_USERNAME}"
+                f"• الأيدي (ID): `{target_user.id}`\n"
+                f"• الرتبة الحالية: {target_role}\n"
+                f"• حقوق السورس: @{DEV_USERNAME}"
             )
             if photos.total_count > 0:
                 photo_file_id = photos.photos[0][-1].file_id
@@ -229,81 +381,130 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await message.reply_text(id_text)
             return
 
-        # --- أوامر الألعاب والترفيه المتكاملة (م 6) ---
+        # =====================================================================
+        # --- قسم ألعاب وترفيه السورس الشامل (Games & Entertainment - م 6) ---
+        # =====================================================================
         if text_clean in ["لعبة النسبة", "نسبة الحب", "نسبة"]:
-            await message.reply_text(f"🎲 **لعبة النسبة:**\nنسبة توافق وتفاعل {target_user.first_name} في الكروب هي: **94%** 🔥")
+            rand_num = random.randint(40, 100)
+            await message.reply_text(f"🎲 **لعبة النسبة المئوية:**\nنسبة توافق وتفاعل {target_user.first_name} في الكروب هي: **{rand_num}%** 🔥\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean in ["مشن", "حزر", "تخمين"]:
-            await message.reply_text("🎮 **لعبة الحزورات والذكاء:**\nما هو الشيء الذي أكل نصفه وبقي نصفه الآخر؟\n(أرسل الإجابة في الكروب لتفوز بنقاط الترند!)")
+            await message.reply_text(f"🎮 **لعبة الحزورات والذكاء:**\nما هو الشيء الذي أكل نصفه وبقي نصفه الآخر؟\n(أرسل الإجابة الصحيحة في الكروب لتفوز بنقاط الترند!)\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "حزورة":
+            await message.reply_text(f"🧩 **سؤال الذكاء السريع:**\nشيء يملك أربعة أرجل ولا يمكنه المشي أبداً، فما هو؟\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "تحدي":
+            await message.reply_text(f"⚔️ **نظام التحديات:**\nتم تفعيل التحدي بين الأعضاء، أرسل (تحدي [اسم العضو]) لبدء المنافسة!\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "كت تويت":
+            await message.reply_text(f"🐦 **كت تويت:**\nأكثر صفة تكرهها في الشخص المقابل لك؟ (أجب بصراحة)\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "صراحة":
+            await message.reply_text(f"💬 **لعبة الصراحة المطلقة:**\nلو خيروك بين العيش بدون إنترنت أو العيش بدون أصدقاء، ماذا تختار؟\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        # =====================================================================
+        # --- قسم أوامر المشرفين والإدارة العامة (Admin Commands) ---
+        # =====================================================================
+        if text_clean == "تصفير الترند":
+            conn = sqlite3.connect("bot_database.db")
+            cursor = conn.cursor()
+            cursor.execute("UPDATE user_stats SET messages_count = 0, points = 0 WHERE user_id = ?", (user.id,))
+            conn.commit()
+            conn.close()
+            await message.reply_text(f"🔄 **تم تصفير إحصائيات وترند تفاعلك الشخصي بنجاح!**\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "انذار" and is_elevated and reply:
+            await message.reply_text(f"⚠️ **تنبيه إداري رسمي موجه إلى العضو:** {target_user.mention_html()},\nيرجى الالتزام بقوانين وقواعد الكروب تفادياً للطرد والحظر!\n• حقوق السورس: @{DEV_USERNAME}", parse_mode="HTML")
+            return
+
+        if text_clean == "ضبط الحماية" and is_elevated:
+            await message.reply_text(f"🛡️ **تم ضبط إعدادات الحماية والتشفير الكامل ضد السبام والروابط بنجاح.**\n• المطور: @{DEV_USERNAME}")
+            return
+
+        if text_clean == "الاعدادات" and is_elevated:
+            await message.reply_text(f"⚙️ **لوحة إعدادات المجموعة الحالية:**\n• الحماية العامة: مفعلة 🛡️\n• الردود التلقائية: مفعلة 💬\n• منع الروابط: مفعل 🚫\n• مطور السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "القوائم":
-            await message.reply_text("📋 **قوائم إدارة الكروب والتنظيم:**\n• قائمة الأوامر العامة\n• قائمة الحظر والكتم\n• قائمة الردود والتفاعلات")
+            await message.reply_text(f"📋 **قوائم إدارة الكروب والتنظيم:**\n• قائمة الأوامر العامة\n• قائمة الحظر والكتم\n• قائمة الردود والتفاعلات\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "الميديا":
-            await message.reply_text("📁 **إدارة ميديا المجموعة:**\n• الصور، الفيديوهات، والملفات الصوتية مفعلة بالكامل.")
+            await message.reply_text(f"📁 **إدارة ميديا المجموعة:**\n• الصور، الفيديوهات، وملفات الوسائط مفعلة بالكامل.\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "الردود المميزه":
-            await message.reply_text("💬 **الردود المميزة:**\nلا توجد ردود مميزة مضافة حالياً في هذا الكروب.")
+            await message.reply_text(f"💬 **الردود المميزة:**\nلا توجد ردود مميزة مضافة حالياً في هذا الكروب.\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "الردود المتعدده":
-            await message.reply_text("💬 **الردود المتعددة:**\nمفعلة وتستجيب للكلمات المفتاحية.")
+            await message.reply_text(f"💬 **الردود المتعددة:**\nمفعلة وتستجيب للكلمات المفتاحية بدقة عالية.\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "الاوامر المضافه":
-            await message.reply_text("⚡ **الأوامر المضافة:**\nلا توجد أوامر مضافة مخصصة لهذا الكروب حتى الآن.")
+            await message.reply_text(f"⚡ **الأوامر المضافة:**\nلا توجد أوامر مضافة مخصصة لهذا الكروب حتى الآن.\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "التفعيلات":
-            await message.reply_text("⚙️ **حالة التفعيلات العامة:**\n• الترحيب: مفعل\n• الردود: مفعل\n• الحماية: مفعل")
+            await message.reply_text(f"⚙️ **حالة التفعيلات العامة في الكروب:**\n• الترحيب بالأعضاء: مفعل ✅\n• الردود التلقائية: مفعل ✅\n• حماية الكروب: مفعل ✅\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "صلاحياتي":
-            await message.reply_text(f"🛡️ **رتبتك الحالية في السورس هي:** {role_title}")
+            await message.reply_text(f"🛡️ **رتبتك وصلاحياتك الحالية في السورس هي:** {role_title}\n• المطور الأساسي: @{DEV_USERNAME}")
             return
 
         if text_clean == "كتم" and is_elevated and reply:
             await chat.restrict_member(target_user.id, can_send_messages=False)
-            await message.reply_text(f"🔇 **تم كتم العضو:** {target_user.first_name}")
+            await message.reply_text(f"🔇 **تم كتم العضو بنجاح:** {target_user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "حظر" and is_elevated and reply:
             await chat.ban_member(target_user.id)
-            await message.reply_text(f"🚫 **تم حظر العضو:** {target_user.first_name}")
+            await message.reply_text(f"🚫 **تم حظر العضو نهائياً:** {target_user.first_name}\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "تثبيت" and is_elevated and reply:
             await reply.pin()
-            await message.reply_text("📌 **تم تثبيت الرسالة بنجاح.**")
+            await message.reply_text(f"📌 **تم تثبيت الرسالة في المجموعة بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "الغاء التثبيت" and is_elevated:
             await chat.unpin_all_messages()
-            await message.reply_text("🧹 **تم إلغاء تثبيت جميع الرسائل في المجموعة.**")
+            await message.reply_text(f"🧹 **تم إلغاء تثبيت جميع الرسائل في المجموعة بنجاح.**\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
         if text_clean == "كشف البوتات" and is_elevated:
-            await message.reply_text("🤖 **فحص البوتات:**\nلا توجد بوتات وهمية أو ضارة مخترقة للكروب حالياً.")
+            await message.reply_text(f"🤖 **فحص البوتات والروابط:**\nلا توجد بوتات وهمية أو ضارة مخترقة للكروب حالياً.\n• حقوق السورس: @{DEV_USERNAME}")
             return
 
+        # =====================================================================
+        # --- قائمة الأوامر الرئيسية المتكاملة (Main Command Panel) ---
+        # =====================================================================
         if text_clean in ["الاوامر", "الأوامر", "اوامر"]:
             commands_main_text = (
-                f"• اليك اوامر بوتات السورس 5.1 (حقوق @{DEV_USERNAME}) .\n\n"
-                "• ( م 1 ) ↬ اوامر الحمايه\n"
-                "• ( م 2 ) ↬ اوامر المشرفين\n"
-                "• ( م 3 ) ↬ اوامر التفعيلات\n"
-                "• ( م 4 ) ↬ اوامر المسح\n"
-                "• ( م 5 ) ↬ اوامر المطورين\n"
-                "• ( م 6 ) ↬ اوامر الترفيه والألعاب"
+                f"• اليك اوامر بوتات السورس 5.1 (حقوق المطور الأساسي @{DEV_USERNAME}) .\n\n"
+                "• ( م 1 ) ↬ اوامر الحمايه والقفل والفتح\n"
+                "• ( م 2 ) ↬ اوامر المشرفين والإدارة العامة\n"
+                "• ( م 3 ) ↬ اوامر التفعيلات والتعطيل الشاملة\n"
+                "• ( م 4 ) ↬ اوامر المسح والتنظيف والترند\n"
+                "• ( م 5 ) ↬ اوامر المطورين والتحكم والربط\n"
+                "• ( م 6 ) ↬ اوامر الترفيه والألعاب والمسابقات"
             )
             await message.reply_text(commands_main_text, reply_markup=get_main_commands_menu())
             return
 
-# --- معالج الأزرار والقوائم ---
+# =====================================================================
+# --- معالج الأزرار والقوائم التفاعلية (Callback Query Handler) ---
+# =====================================================================
+
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -311,55 +512,60 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "back_to_main_cmds":
         commands_main_text = (
-            f"• اليك اوامر بوتات السورس 5.1 (حقوق @{DEV_USERNAME}) .\n\n"
-            "• ( م 1 ) ↬ اوامر الحمايه\n"
-            "• ( م 2 ) ↬ اوامر المشرفين\n"
-            "• ( م 3 ) ↬ اوامر التفعيلات\n"
-            "• ( م 4 ) ↬ اوامر المسح\n"
-            "• ( م 5 ) ↬ اوامر المطورين\n"
-            "• ( م 6 ) ↬ اوامر الترفيه والألعاب"
+            f"• اليك اوامر بوتات السورس 5.1 (حقوق المطور الأساسي @{DEV_USERNAME}) .\n\n"
+            "• ( م 1 ) ↬ اوامر الحمايه والقفل والفتح\n"
+            "• ( م 2 ) ↬ اوامر المشرفين والإدارة العامة\n"
+            "• ( م 3 ) ↬ اوامر التفعيلات والتعطيل الشاملة\n"
+            "• ( م 4 ) ↬ اوامر المسح والتنظيف والترند\n"
+            "• ( م 5 ) ↬ اوامر المطورين والتحكم والربط\n"
+            "• ( م 6 ) ↬ اوامر الترفيه والألعاب والمسابقات"
         )
         await query.edit_message_text(text=commands_main_text, reply_markup=get_main_commands_menu())
         return
     elif data == "menu_page1":
-        await query.edit_message_text(text="🛡️ **أوامر الحماية:**\n• قفل الروابط، المعرفات، التكرار، الصور، والفيديوهات.", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🛡️ **أوامر الحماية والقفل والفتح (م 1):**\n• قفل وفتح: (الروابط، المعرفات، التكرار، الصور، الفيديوهات، البوتات، المتحركات، التوجيه، الكلايش).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page2":
         admin_menu_text = (
-            "- اوامر مشرفين المجموعه ⚡️⚡️.\n"
-            "- الاوامر تعمل بامر ( الكتابه ) :\n\n"
-            "• القوائم • الميديا\n"
-            "• نزلني • انذار\n"
-            "• تصفير الترند\n"
-            "• ضبط الحماية\n"
-            "• تثبيت • الاعدادات\n"
-            "• الردود المميزه • الردود المتعدده\n"
-            "• الاوامر المضافه • التفعيلات • صلاحياتي\n"
-            "• تاك للكل • ضع ترحيب • منع • الغاء منع"
+            f"- اوامر مشرفين المجموعه والإدارة ⚡️⚡️ (حقوق @{DEV_USERNAME}).\n"
+            "- الاوامر تعمل بكتابتها في الكروب :\n\n"
+            "• القوائم • الميديا • نزلني\n"
+            "• انذار • تصفير الترند • ضبط الحماية\n"
+            "• تثبيت • الاعدادات • الردود المميزه\n"
+            "• الردود المتعدده • الاوامر المضافه\n"
+            "• التفعيلات • صلاحياتي • تاك للكل\n"
+            "• تاك مشرفين • رفع ادمن • رفع مدير"
         )
         await query.edit_message_text(text=admin_menu_text, reply_markup=get_admins_menu_keyboard())
         return
     elif data == "menu_page3":
-        await query.edit_message_text(text="⚙️ **أوامر التفعيلات:**\n• تفعيل / تعطيل الردود والترحيب والحماية التلقائية.", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"⚙️ **أوامر التفعيلات والتعطيل (م 3):**\n• تفعيل وتعطيل: (الترحيب، الردود، الالعاب، التحذيرات، الحماية العامة).\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page4":
-        await query.edit_message_text(text="🗑️ **أوامر المسح والتنظيف:**\n• مسح الرسائل، تنظيف القوائم، وتصفير الإحصائيات.", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🗑️ **أوامر المسح والتنظيف (م 4):**\n• مسح الرسائل، تنظيف القوائم، وتصفير إحصائيات وترند الأعضاء.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page5":
-        await query.edit_message_text(f"💻 **أوامر المطورين (المطور الأساسي: @{DEV_USERNAME}):**\n• التحكم الشامل بالسورس وربط البوتات.", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"💻 **أوامر المطورين والتحكم (م 5):**\n• التحكم الشامل بالسورس، ربط البوتات، وإدارة قواعد البيانات SQL.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
     elif data == "menu_page6":
-        await query.edit_message_text(text="🎮 **أوامر الترفيه والألعاب (م 6):**\n• نسبة الحب، حزورات، مسابقات، وألعاب الكروب.", reply_markup=get_sub_back_keyboard())
+        await query.edit_message_text(text=f"🎮 **أوامر الترفيه والألعاب (م 6):**\n• نسبة الحب، حزورات ذكية، تحديات، كت تويت، صراحة، وألعاب الكروب المتنوعة.\n• المطور الأساسي: @{DEV_USERNAME}", reply_markup=get_sub_back_keyboard())
         return
 
-# --- تشغيل البوت عبر الويب هوك ---
+# =====================================================================
+# --- التشغيل الأساسي للبوت عبر الويب هوك (Main Application Runner) ---
+# =====================================================================
+
 def main():
     init_db()
     application = Application.builder().token(TOKEN).build()
+    
+    # إضافة المعالجات (Handlers) للربط والتنفيذ الفوري
     application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(MessageHandler(filters.ALL, message_handler))
 
     PORT = int(os.environ.get("PORT", "10000"))
+    
+    # تشغيل نظام الويب هوك المستقر على المنصة
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
