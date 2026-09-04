@@ -22,7 +22,7 @@ app = Client(
 MAIN_TEXT = (
     "Tb\n"
     "الاوامر\n\n"
-    "- : اليك اوامر البوت ⚡️⚡️\n\n"
+    "- : اليك اوامر سورس تي بي (Source TP) ⚡️⚡️\n\n"
     "- [ م 1 ] ↜ اوامر الحمايه\n"
     "- [ م 2 ] ↜ اوامر المشرفين\n"
     "- [ م 3 ] ↜ اوامر التفعيلات\n"
@@ -35,7 +35,8 @@ MAIN_KEYBOARD = InlineKeyboardMarkup([
     [InlineKeyboardButton("• 1 •", callback_data="sec_1"), InlineKeyboardButton("• 2 •", callback_data="sec_2")],
     [InlineKeyboardButton("• 3 •", callback_data="sec_3")],
     [InlineKeyboardButton("• 4 •", callback_data="sec_4"), InlineKeyboardButton("• 5 •", callback_data="sec_5")],
-    [InlineKeyboardButton("• 6 •", callback_data="sec_6")]
+    [InlineKeyboardButton("• 6 •", callback_data="sec_6")],
+    [InlineKeyboardButton("قناة السورس", url="https://t.me/odox6")]
 ])
 
 @app.on_message(filters.command(["start", "الاوامر", "البداية"]))
@@ -43,12 +44,13 @@ async def start_command(client, message):
     start_text = (
         "Tb\n"
         "/start\n\n"
-        "- : اهلا بك عزيزي المطور الاساسي\n"
-        "- : اليك كيپورد اوامر سورس الموسوي\n"
+        "- : اهلا بك عزيزي المطور الاساسي (@odox3)\n"
+        "- : اليك كيبورد أوامر سورس تي بي (Source TP)\n"
+        "- : قناة السورس : @odox6\n"
         "- : نوع البوت : - مدفوع ينتهي بعد 14 يوم"
     )
     start_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("قناة التحديثات", url="https://t.me/your_channel")],
+        [InlineKeyboardButton("قناة التحديثات", url="https://t.me/odox6")],
         [InlineKeyboardButton("اعدادات الاساسي", callback_data="sec_basic")],
         [InlineKeyboardButton("اعدادات البوت", callback_data="sec_bot_settings"), InlineKeyboardButton("اعدادات الطلبات", callback_data="sec_requests")],
         [InlineKeyboardButton("اوامر الاشتراك الاجباري", callback_data="sec_sub")],
