@@ -8,7 +8,7 @@ except RuntimeError:
     asyncio.set_event_loop(asyncio.new_event_loop())
 
 API_ID = 36216701
-API_HASH = "dbba65547d24e32dd37ac3dbm2885ef"
+API_HASH = "f95bac8547d34e32dd37ec3cdbe28558"
 BOT_TOKEN = "8704690798:AAEshhQ2o0qFuy6UwHbVGWq-a"
 
 app = Client(
