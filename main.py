@@ -4,7 +4,6 @@ from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# إعداد السجل
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 BOT_NAME = "Source TP"
 BOT_USERNAME = "@odox6"
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")  # رابط رندر الخارجي تلقائياً
+RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
 
 app = Flask(__name__)
 application = None
@@ -22,12 +21,9 @@ async def setup_bot():
     global application
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # المعالجات والأوامر
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("id", id_command))
-    application.add_handler(CommandHandler("ايدي", id_command))
     application.add_handler(CommandHandler("admin", admin_panel))
-    application.add_handler(CommandHandler("المطور", admin_panel))
     application.add_handler(CallbackQueryHandler(callback_handler))
     
     await application.initialize()
