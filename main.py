@@ -56,5 +56,18 @@ async def games_menu(client, message):
 async def youtube_search(client, message):
     await message.reply_text("📺 **قسم اليوتيوب:**\nارسل اسم الفيديو أو الرابط للبحث والتحميل.")
 
-print("Bot is starting...")
-app.run()
+printimport asyncio
+
+
+
+async def main():
+    print("Bot is starting...")
+    await app.start()
+    print("Bot is online!")
+    await asyncio.Event().wait()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
