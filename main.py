@@ -1,6 +1,7 @@
 import os
 import logging
 import sqlite3
+import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
@@ -379,6 +380,48 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text(id_text)
             return
 
+        # أوامر الإدارة والمشرفين الكاملة (كتم، حظر، طرد، تثبيت، مسح)
+        is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title or "مدير" in role_title or "ادمن" in role_title
+
+        if text_clean in ["كتم", "صمت"] and is_elevated and reply:
+            await chat.restrict_member(target_user.id, can_send_messages=False)
+            await message.reply_text(f"🔇 **تم كتم العضو بنجاح:** {target_user.first_name}")
+            return
+        if text_clean in ["فك الكتم", "الغاء الكتم"] and is_elevated and reply:
+            await chat.restrict_member(target_user.id, can_send_messages=True, can_send_media_messages=True, can_send_other_messages=True, can_add_web_page_previews=True)
+            await message.reply_text(f"🔊 **تم فك الكتم عن العضو بنجاح:** {target_user.first_name}")
+            return
+        if text_clean in ["حظر", "بان"] and is_elevated and reply:
+            await chat.ban_member(target_user.id)
+            await message.reply_text(f"🚫 **تم حظر وطرد العضو بنجاح:** {target_user.first_name}")
+            return
+        if text_clean in ["الغاء الحظر", "فك الحظر"] and is_elevated and reply:
+            await chat.unban_member(target_user.id)
+            await message.reply_text(f"✅ **تم رفع الحظر عن العضو بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "تثبيت" and is_elevated and reply:
+            await reply.pin()
+            await message.reply_text("📌 **تم تثبيت الرسالة بنجاح.**")
+            return
+        if text_clean in ["مسح", "حذف"] and is_elevated and reply:
+            await reply.delete()
+            await message.reply_text("🗑️ **تم مسح الرسالة المحددة بنجاح.**")
+            return
+
+        # أوامر الترفيه الفورية في الكروبات
+        if text_clean == "نسبه الحب":
+            love_val = random.randint(10, 100)
+            await message.reply_text(f"❤️ **نسبة الحب بينكم هي : {love_val}%** 😍")
+            return
+        if text_clean in ["نكتة", "نكت"]:
+            jokes_list = [
+                "محشش سألوه: شنو أبطح عاصمة بالعالم؟ قال: أبو ظبي لأنها متبطحة! 😂",
+                "واحد كولشي ينسى، راح للدكتور كتبله ورقة وكتب بيها: تذكر إنك نسيت شي! 😆",
+                "واحد يغار على مرته حيل، كالها ليش لابسة عباية مطرزة؟ كلتله هذا ورد، كاللها لا هذا تفجير! 😜"
+            ]
+            await message.reply_text(random.choice(jokes_list))
+            return
+
         if text_clean.startswith("قفل ") or text_clean.startswith("فتح "):
             parts = text_clean.split(" ", 1)
             action = parts[0]
@@ -420,41 +463,41 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title
+        is_higher_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title
 
-        if text_clean == "رفع مميز" and is_elevated and reply:
+        if text_clean == "رفع مميز" and is_higher_elevated and reply:
             set_user_role(target_user.id, "vip")
             await message.reply_text(f"⭐ **تم رفع العضو (مميز) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع ادمن" and is_elevated and reply:
+        if text_clean == "رفع ادمن" and is_higher_elevated and reply:
             set_user_role(target_user.id, "admin")
             await message.reply_text(f"🛡️ **تم رفع العضو (ادمن) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مدير" and is_elevated and reply:
+        if text_clean == "رفع مدير" and is_higher_elevated and reply:
             set_user_role(target_user.id, "manager")
             await message.reply_text(f"⚙️ **تم رفع العضو (مدير) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع منشئ" and is_elevated and reply:
+        if text_clean == "رفع منشئ" and is_higher_elevated and reply:
             set_user_role(target_user.id, "creator")
             await message.reply_text(f"🛠️ **تم رفع العضو (منشئ) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع منشئ أساسي" and is_elevated and reply:
+        if text_clean == "رفع منشئ أساسي" and is_higher_elevated and reply:
             set_user_role(target_user.id, "creator_basic")
             await message.reply_text(f"🏗️ **تم رفع العضو (منشئ أساسي) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مالك" and is_elevated and reply:
+        if text_clean == "رفع مالك" and is_higher_elevated and reply:
             set_user_role(target_user.id, "owner")
             await message.reply_text(f"💎 **تم رفع العضو (مالك) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مالك أساسي" and is_elevated and reply:
+        if text_clean == "رفع مالك أساسي" and is_higher_elevated and reply:
             set_user_role(target_user.id, "owner_basic")
             await message.reply_text(f"🏛️ **تم رفع العضو (مالك أساسي) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مطور" and is_elevated and reply:
+        if text_clean == "رفع مطور" and is_higher_elevated and reply:
             set_user_role(target_user.id, "dev")
             await message.reply_text(f"💻 **تم رفع العضو (مطور) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مطور ثانوي" and is_elevated and reply:
+        if text_clean == "رفع مطور ثانوي" and is_higher_elevated and reply:
             set_user_role(target_user.id, "dev_secondary")
             await message.reply_text(f"⚡ **تم رفع العضو (مطور ثانوي) بنجاح:** {target_user.first_name}")
             return
@@ -462,7 +505,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             set_user_role(target_user.id, "dev_primary")
             await message.reply_text(f"👑 **تم رفع العضو (مطور أساسي) بنجاح:** {target_user.first_name}")
             return
-        if text_clean in ["تنزيل", "تنزيل رتبة"] and is_elevated and reply:
+        if text_clean in ["تنزيل", "تنزيل رتبة"] and is_higher_elevated and reply:
             remove_user_role(target_user.id)
             await message.reply_text(f"❌ **تم تنزيل العضو وإرجاع رتبته إلى (عضو عادي):** {target_user.first_name}")
             return
@@ -559,8 +602,54 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text="🔥 **( م 6 ) ↬ اوامر الترفيه والألعاب:**", reply_markup=get_fun_menu_keyboard())
         return
 
+    # تفاعل أزرار المشرفين السريعة عبر القائمة
+    if data == "adm_mute":
+        await query.answer("أرسل كلمة (كتم) بالرد على رسالة العضو المراد كتمه", show_alert=True)
+        return
+    elif data == "adm_ban":
+        await query.answer("أرسل كلمة (حظر) بالرد على رسالة العضو المراد حظره", show_alert=True)
+        return
+    elif data == "adm_pin":
+        await query.answer("أرسل كلمة (تثبيت) بالرد على رسالة الرسالة المراد تثبيتها", show_alert=True)
+        return
+    elif data == "adm_clean":
+        await query.answer("أرسل كلمة (مسح) بالرد على رسالة الرسالة المراد حذفها", show_alert=True)
+        return
+    elif data == "adm_warn":
+        await query.answer("ميزة التنبيهات والتحذيرات مفعلة تلقائياً في السورس", show_alert=True)
+        return
+    elif data == "adm_promote":
+        await query.answer("استخدم أمر (رفع ادمن) أو الأزرار المخصصة للمطورين", show_alert=True)
+        return
+
+    # تفاعل أزرار الترفيه عبر القائمة
+    if data == "fun_love":
+        await query.answer(f"❤️ نسبة الحب العشوائية: {random.randint(20, 100)}%", show_alert=True)
+        return
+    elif data == "fun_crazy":
+        await query.answer(f"😏 نسبة الانحراف: {random.randint(5, 99)}%", show_alert=True)
+        return
+    elif data == "fun_choices":
+        await query.answer("🃏 لو خيروك: (تأكل أكل مالتي كرسبي لو تشرب عصير حار؟)", show_alert=True)
+        return
+    elif data == "fun_jokes":
+        await query.answer("🎭 تم إرسال نكتة جديدة في الكروب!", show_alert=True)
+        return
+    elif data == "fun_fortune":
+        await query.answer("🔮 حظك اليوم: ستحصل على نقاط وتفاعل مميز جداً في الكروب!", show_alert=True)
+        return
+    elif data == "fun_games":
+        await query.answer("🔪 لعبة المافيا والروليت قيد التفعيل التلقائي.", show_alert=True)
+        return
+
     if data.startswith("dev_add_"):
         await query.answer("قم بالرد على رسالة الشخص في الكروب واكتب أمر الرفع المطلوب", show_alert=True)
+        return
+    elif data == "dev_demote_all":
+        await query.answer("قم بالرد على الشخص واكتب (تنزيل)", show_alert=True)
+        return
+    elif data == "dev_broadcast":
+        await query.answer("خاصية الإذاعة العامة للمطورين جاهزة للعمل.", show_alert=True)
         return
 
     if data.startswith("page_"):
@@ -597,3 +686,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
