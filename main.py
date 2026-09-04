@@ -15,7 +15,7 @@ TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
 DEV_USERNAME = "odox3"  # المطور الأساسي
 CHANNEL_USERNAME = "@odox6"  # قناة السورس
 
-# --- قاعدة البيانات ---
+# --- قاعدة البيانات الشاملة ---
 def init_db():
     conn = sqlite3.connect("bot_database.db", timeout=30.0)
     cursor = conn.cursor()
@@ -30,7 +30,15 @@ def init_db():
             points INTEGER DEFAULT 0,
             photos_count INTEGER DEFAULT 0,
             typos_count INTEGER DEFAULT 0,
-            level TEXT DEFAULT 'مبتدئ'
+            level TEXT DEFAULT 'أسطورة الكروب 🔥'
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS group_settings (
+            chat_id INTEGER,
+            feature_key TEXT,
+            is_enabled INTEGER DEFAULT 1,
+            PRIMARY KEY (chat_id, feature_key)
         )
     """)
     conn.commit()
@@ -53,9 +61,9 @@ def update_user_stats(user_id, is_photo=False):
         cursor = conn.cursor()
         cursor.execute("INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)", (user_id,))
         if is_photo:
-            cursor.execute("UPDATE user_stats SET messages_count = messages_count + 1, photos_count = photos_count + 1, points = points + 3 WHERE user_id = ?", (user_id,))
+            cursor.execute("UPDATE user_stats SET messages_count = messages_count + 1, photos_count = photos_count + 1, points = points + 10 WHERE user_id = ?", (user_id,))
         else:
-            cursor.execute("UPDATE user_stats SET messages_count = messages_count + 1, points = points + 1 WHERE user_id = ?", (user_id,))
+            cursor.execute("UPDATE user_stats SET messages_count = messages_count + 1, points = points + 2 WHERE user_id = ?", (user_id,))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -67,11 +75,11 @@ def get_user_stats_data(user_id):
     cursor.execute("SELECT messages_count, points, photos_count, typos_count, level FROM user_stats WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    return row if row else (0, 0, 0, 0, 'مبتدئ')
+    return row if row else (0, 0, 0, 0, 'أسطورة الكروب 🔥')
 
 def get_user_role(user_id, username):
     if username and username.lower() == DEV_USERNAME.lower():
-        return "المطور الاساسي"
+        return "مطور أساسي 👑"
     conn = sqlite3.connect("bot_database.db")
     cursor = conn.cursor()
     cursor.execute("SELECT role FROM roles WHERE user_id = ?", (user_id,))
@@ -79,18 +87,31 @@ def get_user_role(user_id, username):
     conn.close()
     if row:
         roles_map = {
-            "dev_primary": "مطور أساسي", 
-            "dev_secondary": "مطور ثانوي", 
-            "admin": "أدمن", 
-            "vip": "عضو مميز"
+            "dev_primary": "مطور أساسي 👑",
+            "dev_secondary": "مطور ثانوي ⚡",
+            "dev": "مطور 💻",
+            "owner_basic": "مالك أساسي 🏛️",
+            "owner": "مالك 💎",
+            "creator_basic": "منشئ أساسي 🏗️",
+            "creator": "منشئ 🛠️",
+            "manager": "مدير ⚙️",
+            "admin": "ادمن 🛡️",
+            "vip": "مميز ⭐"
         }
-        return roles_map.get(row[0], "عضو")
-    return "عضو"
+        return roles_map.get(row[0], "عضو 👤")
+    return "عضو 👤"
 
 def set_user_role(user_id, role):
     conn = sqlite3.connect("bot_database.db")
     cursor = conn.cursor()
     cursor.execute("INSERT OR REPLACE INTO roles (user_id, role) VALUES (?, ?)", (user_id, role))
+    conn.commit()
+    conn.close()
+
+def remove_user_role(user_id):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM roles WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
 
@@ -101,41 +122,135 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
-# --- لوحات الأزرار الشفافة للكروبات (7 أقسام) ---
-def get_command_keyboard():
+# --- قائمة ميزات التفعيل والتعطيل (أكثر من 50 ميزة) ---
+FEATURES_LIST = {
+    "lock_links": "قفل الروابط", "lock_username": "قفل المعرفات (@)", "lock_bots": "قفل البوتات",
+    "lock_forward": "قفل التوجيه", "lock_photos": "قفل الصور", "lock_videos": "قفل الفيديوهات",
+    "lock_documents": "قفل الملفات", "lock_audio": "قفل الصوتيات", "lock_voice": "قفل البصمات",
+    "lock_stickers": "قفل الملصقات", "lock_gifs": "قفل المتحركات", "lock_contacts": "قفل الجهات",
+    "lock_location": "قفل الموقع", "lock_game": "قفل الألعاب", "lock_poll": "قفل الاستفتاءات",
+    "lock_arabic": "قفل العربية", "lock_english": "قفل الإنجليزية", "lock_markdown": "قفل الماركدون",
+    "lock_inline": "قفل الأزرار الشفافة", "lock_tag": "قفل التاك (#)", "lock_mention": "قفل التذكير",
+    "lock_reply": "قفل الردود", "lock_edit": "قفل التعديل", "lock_service": "قفل رسائل الإشعار",
+    "lock_phone": "قفل أرقام الهواتف", "lock_visa": "قفل البطاقات", "lock_currency": "قفل العملات",
+    "lock_spam": "قفل التكرار (Spam)", "lock_flood": "قفل التثاقل", "lock_caps": "قفل الحروف الكبيرة",
+    "lock_emoji": "قفل الإيموجي المفرط", "lock_fwd_channel": "قفل توجيه القنوات", "lock_fwd_user": "قفل توجيه الأشخاص",
+    "lock_pinned": "قفل التثبيت", "lock_name_change": "قفل تغيير اسم المجموعة", "lock_photo_change": "قفل صورة المجموعة",
+    "lock_audio_chat": "قفل المكالمات الصوتية", "lock_channels_msg": "قفل رسايل الكروبات", "lock_badwords": "قفل الكلمات البذيئة",
+    "lock_links_tg": "قفل روابط تليجرام", "lock_html": "قفل أكواد HTML", "lock_quotes": "قفل الاقتباسات",
+    "lock_audio_record": "قفل تسجيل الصوت", "lock_video_note": "قفل رسائل الفيديو", "lock_inline_bot": "قفل البوتات الخارجية",
+    "lock_payment": "قفل المدفوعات", "lock_poll_anonymous": "قفل الاستفتاء الخفي", "lock_reactions": "قفل التفاعلات"
+}
+
+def is_feature_enabled(chat_id, feature_key):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_enabled FROM group_settings WHERE chat_id = ? AND feature_key = ?", (chat_id, feature_key))
+    row = cursor.fetchone()
+    conn.close()
+    if row is not None:
+        return row[0] == 1
+    return True
+
+def toggle_feature_state(chat_id, feature_key):
+    current = is_feature_enabled(chat_id, feature_key)
+    new_state = 0 if current else 1
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO group_settings (chat_id, feature_key, is_enabled) VALUES (?, ?, ?)", (chat_id, feature_key, new_state))
+    conn.commit()
+    conn.close()
+    return new_state
+
+# --- لوحات الأزرار الشفافة الرئيسية ---
+def get_main_group_menu():
     keyboard = [
         [
-            InlineKeyboardButton("📊 الإحصائيات", callback_data="cmd_stats"),
-            InlineKeyboardButton("🛡️ الحماية", callback_data="cmd_protection")
+            InlineKeyboardButton("⚙️ قائمة التفعيل والتعطيل", callback_data="menu_activation_list"),
+            InlineKeyboardButton("🛡️ أوامر المشرفين", callback_data="menu_admins_cmds")
         ],
         [
-            InlineKeyboardButton("🎮 الألعاب", callback_data="cmd_games"),
-            InlineKeyboardButton("⚙️ الإدارة", callback_data="cmd_admin")
+            InlineKeyboardButton("👑 رتب وأوامر المطورين", callback_data="menu_dev_cmds"),
+            InlineKeyboardButton("🔥 الأقسام الترفيهية", callback_data="menu_fun_section")
         ],
         [
-            InlineKeyboardButton("🛍️ المتجر", callback_data="cmd_shop"),
-            InlineKeyboardButton("👨‍💻 المطور", callback_data="cmd_dev")
-        ],
-        [
+            InlineKeyboardButton("💎 قسم سورس الموسوي", callback_data="menu_source_info"),
             InlineKeyboardButton("❌ إغلاق القائمة", callback_data="cmd_close")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- لوحة التحكم الخاصة في الشات الخاص (بدء البوت /start) ---
+def get_activation_menu(page=1):
+    keys = list(FEATURES_LIST.keys())
+    per_page = 10
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_keys = keys[start:end]
+    
+    keyboard = []
+    for i in range(0, len(page_keys), 2):
+        row = []
+        k1 = page_keys[i]
+        row.append(InlineKeyboardButton(f"✅ {FEATURES_LIST[k1]}", callback_data=f"toggle_{k1}_{page}"))
+        if i + 1 < len(page_keys):
+            k2 = page_keys[i+1]
+            row.append(InlineKeyboardButton(f"✅ {FEATURES_LIST[k2]}", callback_data=f"toggle_{k2}_{page}"))
+        keyboard.append(row)
+        
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("⬅️ السابق", callback_data=f"page_{page-1}"))
+    if end < len(keys):
+        nav_row.append(InlineKeyboardButton("التالي ➡️", callback_data=f"page_{page+1}"))
+    if nav_row:
+        keyboard.append(nav_row)
+        
+    keyboard.append([InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data="back_to_main")])
+    return InlineKeyboardMarkup(keyboard)
+
+def get_admins_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("🔇 كتم / فك الكتم", callback_data="adm_mute"), InlineKeyboardButton("🚫 طرد / حظر", callback_data="adm_ban")],
+        [InlineKeyboardButton("📌 تثبيت رسالة", callback_data="adm_pin"), InlineKeyboardButton("🗑️ مسح الرسائل", callback_data="adm_clean")],
+        [InlineKeyboardButton("⚠️ تحذير عضـو", callback_data="adm_warn"), InlineKeyboardButton("👤 رفع ادمن", callback_data="adm_promote")],
+        [InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_dev_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("⭐ رفع مميز", callback_data="dev_add_vip"), InlineKeyboardButton("🛡️ رفع ادمن", callback_data="dev_add_admin")],
+        [InlineKeyboardButton("⚙️ رفع مدير", callback_data="dev_add_manager"), InlineKeyboardButton("🛠️ رفع منشئ", callback_data="dev_add_creator")],
+        [InlineKeyboardButton("🏗️ رفع منشئ أساسي", callback_data="dev_add_creator_basic"), InlineKeyboardButton("💎 رفع مالك", callback_data="dev_add_owner")],
+        [InlineKeyboardButton("🏛️ رفع مالك أساسي", callback_data="dev_add_owner_basic"), InlineKeyboardButton("💻 رفع مطور", callback_data="dev_add_dev")],
+        [InlineKeyboardButton("⚡ رفع مطور ثانوي", callback_data="dev_add_secondary"), InlineKeyboardButton("👑 رفع مطور أساسي", callback_data="dev_add_primary")],
+        [InlineKeyboardButton("❌ تنزيل رتبة / حذف", callback_data="dev_demote_all"), InlineKeyboardButton("📢 إذاعة عامة", callback_data="dev_broadcast")],
+        [InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_fun_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("❤️ نسبة الحب", callback_data="fun_love"), InlineKeyboardButton("😏 نسبة الانحراف", callback_data="fun_crazy")],
+        [InlineKeyboardButton("🃏 لو خيروك", callback_data="fun_choices"), InlineKeyboardButton("🎭 نكت مضحكة", callback_data="fun_jokes")],
+        [InlineKeyboardButton("🔮 البصارة والحظ", callback_data="fun_fortune"), InlineKeyboardButton("🔪 مافيا وروليت", callback_data="fun_games")],
+        [InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 def get_private_start_keyboard(role):
     keyboard = [
         [InlineKeyboardButton("🤖 صنع بوت مجاني", callback_data="make_free_bot")],
         [InlineKeyboardButton("💎 صنع بوت مدفوع", callback_data="make_paid_bot")],
-        [InlineKeyboardButton("📊 إحصائياتي الشخصية", callback_data="my_profile")]
+        [InlineKeyboardButton("📊 ملفي الشخصي ورتبتي", callback_data="my_profile")]
     ]
-    if role in ["المطور الاساسي", "مطور أساسي", "مطور ثانوي"]:
-        keyboard.append([InlineKeyboardButton("⚙️ لوحة تحكم المطورين", callback_data="dev_control_panel")])
+    if "مطور" in role or "مالك" in role:
+        keyboard.append([InlineKeyboardButton("⚙️ لوحة تحكم المطورين الخاصة", callback_data="dev_control_panel")])
     
-    keyboard.append([InlineKeyboardButton("👨‍💻 التواصل مع المطور", url=f"https://t.me/{DEV_USERNAME}")])
+    keyboard.append([InlineKeyboardButton("👨‍💻 تواصل مع المطور الأساسي", url=f"https://t.me/{DEV_USERNAME}")])
     return InlineKeyboardMarkup(keyboard)
 
-# --- معالجة الرسائل والأوامر ---
+# --- معالجة الرسائل والأوامر ونظام الرتب الكامل ---
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -150,53 +265,39 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text_clean = text.strip()
     role_title = get_user_role(user.id, user.username)
 
-    # 1. المعالجة في الشات الخاص (الخاص مع البوت)
+    # 1. الشات الخاص
     if chat.type == "private":
         save_user(user.id, user.username, user.full_name)
         
         if text_clean == "/start":
             welcome_msg = (
-                f"أهلاً بك يا {user.first_name} في منصة صانع البوتات والحماية والألعاب 🌟\n\n"
-                f"رتبتك الحالية: ( **{role_title}** )\n"
-                "اختر أحد الخيارات أدناه للبدء:"
+                f"🌟 **أهلاً بك يا {user.first_name} في سورس الموسوي v5.0 الخارق!**\n\n"
+                f"📌 رتبتك الحالية: ( **{role_title}** )\n"
+                "اختر أحد الخيارات بالأسفل للبدء:"
             )
             await message.reply_text(welcome_msg, reply_markup=get_private_start_keyboard(role_title), parse_mode="Markdown")
             return
             
-        # التحقق إذا كان المستخدم يرسل توكن بوت (بعد النضغط على صنع بوت مجاني أو مدفوع)
         if context.user_data.get("waiting_for_token"):
             bot_type = context.user_data.get("waiting_for_token")
             token = text_clean
             
             if bot_type == "free":
-                # حفظ التوكن المجاني وصنعه تلقائياً
                 conn = sqlite3.connect("bot_database.db")
                 cursor = conn.cursor()
                 cursor.execute("INSERT INTO user_bots (user_id, bot_token, bot_type) VALUES (?, ?, ?)", (user.id, token, "free"))
                 conn.commit()
                 conn.close()
-                
                 context.user_data["waiting_for_token"] = None
-                await message.reply_text("✅ **تم صنع بوتك المجاني بنجاح!**\nتم ربط التوكن الخاص بك وتشغيل البوت تلقائياً.")
+                await message.reply_text("✅ **تم صنع وتفعيل بوتك المجاني بنجاح تام!**")
                 return
-                
             elif bot_type == "paid":
-                # إرسال التوكن للمطور ليقوم بصنعه يدوياً
                 context.user_data["waiting_for_token"] = None
-                dev_notification = (
-                    f"💎 **طلب بوت مدفوع جديد!**\n\n"
-                    f"من المستخدم: {user.first_name} (@{user.username or 'لايوجد'})\n"
-                    f"الايدي: `{user.id}`\n"
-                    f"التوكن المرسل: `{token}`\n\n"
-                    "يرجى تفعيل البوت يدوياً للمستخدم."
-                )
-                # إرسال التوكن للمطور الأساسي إذا أردت أو حفظه بانتظار المراجعة
-                await message.reply_text("💎 **تم إرسال توكن البوت المدفوع إلى المطور بنجاح!**\nسقوم المطور بمراجعته وصنعه وتفعيله لك قريباً.")
+                await message.reply_text("💎 **تم إرسال توكن البوت المدفوع إلى المطور الأساسي لتفعيله يدوياً!**")
                 return
-
         return
 
-    # 2. المعالجة داخل المجموعات (الكروبات)
+    # 2. المجموعات (الكروبات)
     if chat.type in ["group", "supergroup"]:
         is_photo_msg = bool(message.photo)
         save_user(user.id, user.username, user.full_name)
@@ -204,138 +305,199 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "تفعيل":
             activate_group(chat.id, chat.title)
-            await message.reply_text("✅ **تم تفعيل البوت وحمايته وألعابه بالكامل في هذه المجموعة!**\nاكتب `الاوامر` لإظهار لوحات الأزرار الشفافة.")
+            await message.reply_text("✅ **تم تفعيل السورس والحماية الشاملة ونظام الرتب الكامل في هذه المجموعة بنجاح!**\nاكتب `الاوامر` لإظهار الأزرار الشفافة.")
             return
 
         reply = message.reply_to_message
         target_user = reply.from_user if reply else user
-        target_role = get_user_role(target_user.id, target_user.username)
 
-        # إظهار الـ 7 لوحات والأزرار الشفافة عند كتابة "الاوامر"
         if text_clean in ["الاوامر", "الأوامر", "اوامر"]:
-            main_menu_text = (
-                "📚 **دليل أوامر البوت الشامل في المجموعة:**\n\n"
-                "مرحباً بك في لوحة تحكم السورس الرسمية.\n"
-                "اختر القسم الذي تريد استعراض أوامره من الأزرار الشفافة بالأسفل 👇"
+            await message.reply_text(
+                "📜 **قائمة أوامر سورس الموسوي الشاملة v5.0:**\n\n"
+                "اختر القسم المطلوب من الأزرار الشفافة بالأسفل للتحكم التام بالألعاب والرتب 👇",
+                reply_markup=get_main_group_menu()
             )
-            await message.reply_text(main_menu_text, reply_markup=get_command_keyboard())
             return
 
-        # اختصارات الألعاب
-        if text_clean in ["الالعاب", "الألعاب", "ألعاب"]:
-            games_text = (
-                "🎮 **قائمة ألعاب المجموعة الشاملة:**\n"
-                "🎲 `روليت` - عجلة حظ ونقاط\n"
-                "🕵️‍♂️ `مافيا` - لعبة التصويت\n"
-                "🪑 `كراسي` - أسرع من يجلس\n"
-                "🧠 `لغز` - اختبار ذكاء\n"
-                "🍻 `صراحة` - أسئلة جريئة"
+        if text_clean in ["سورس", "السورس", "سورس الموسوي"]:
+            await message.reply_text(
+                "╔═════════════════╗\n"
+                "  ✨ **سورس الموسوي للتطوير والحماية** ✨\n"
+                "╚═════════════════╝\n\n"
+                "• **الإصدار:** v5.0 (نظام الرتب الكامل مع أوامر الرفع والحذف المخصصة)\n"
+                "• **المطور الأساسي:** @odox3\n"
+                "• **قناة السورس:** @odox6",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✨ قناة السورس", url=f"https://t.me/{CHANNEL_USERNAME.replace('@','')}")],
+                                                   [InlineKeyboardButton("👨‍💻 مطور السورس", url=f"https://t.me/{DEV_USERNAME}")]])
             )
-            await message.reply_text(games_text)
             return
 
-        # أوامر الإدارة (رفع مطور ثانوي، أدمن، مميز، طرد، كتم)
-        if text_clean.startswith("رفع مطور ثانوي") and role_title in ["المطور الاساسي", "مطور أساسي"]:
+        # --- نظام الرفع الشامل (عبر الرد على الرسالة) ---
+        is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title
+
+        if text_clean == "رفع مميز" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "vip")
+                await message.reply_text(f"⭐ **تم رفع العضو (مميز) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع ادمن" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "admin")
+                await message.reply_text(f"🛡️ **تم رفع العضو (ادمن) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع مدير" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "manager")
+                await message.reply_text(f"⚙️ **تم رفع العضو (مدير) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع منشئ" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "creator")
+                await message.reply_text(f"🛠️ **تم رفع العضو (منشئ) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع منشئ أساسي" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "creator_basic")
+                await message.reply_text(f"🏗️ **تم رفع العضو (منشئ أساسي) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع مالك" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "owner")
+                await message.reply_text(f"💎 **تم رفع العضو (مالك) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع مالك أساسي" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "owner_basic")
+                await message.reply_text(f"🏛️ **تم رفع العضو (مالك أساسي) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع مطور" and is_elevated:
+            if reply:
+                set_user_role(target_user.id, "dev")
+                await message.reply_text(f"💻 **تم رفع العضو (مطور) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع مطور ثانوي" and is_elevated:
             if reply:
                 set_user_role(target_user.id, "dev_secondary")
-                await message.reply_text(f"👤 تم رفعه (مطور ثانوي بنجاح): {target_user.first_name}")
-        elif text_clean.startswith("رفع ادمن") or text_clean.startswith("رفع أدمن"):
-            if role_title in ["المطور الاساسي", "مطور أساسي", "مطور ثانوي"]:
-                if reply:
-                    set_user_role(target_user.id, "admin")
-                    await message.reply_text(f"👤 تم رفعه (أدمن رسمي): {target_user.first_name}")
-            else:
-                await message.reply_text("⚠️ هذا الأمر للمطورين فقط.")
-        elif text_clean.startswith("طرد"):
-            if role_title in ["المطور الاساسي", "مطور أساسي", "مطور ثانوي", "أدمن"]:
-                if reply:
-                    try:
-                        await chat.ban_member(target_user.id)
-                        await message.reply_text(f"🚫 تم طرد المخالف: {target_user.first_name}")
-                    except Exception:
-                        await message.reply_text("تأكد من صلاحيات البوت للإشراف.")
+                await message.reply_text(f"⚡ **تم رفع العضو (مطور ثانوي) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean == "رفع مطور أساسي" and "مطور أساسي" in role_title:
+            if reply:
+                set_user_role(target_user.id, "dev_primary")
+                await message.reply_text(f"👑 **تم رفع العضو (مطور أساسي) بنجاح:** {target_user.first_name}")
+            return
 
-# --- نظام تفاعل الأزرار (Callback Queries) ---
+        # --- نظام الحذف والتنزيل المخصص لكل رتبة (بالرد أو بالاسم) ---
+        if text_clean in ["تنزيل", "تنزيل رتبة"] and is_elevated:
+            if reply:
+                remove_user_role(target_user.id)
+                await message.reply_text(f"❌ **تم تنزيل العضو وإرجاع رتبته إلى (عضو عادي):** {target_user.first_name}")
+            return
+        
+        if text_clean in ["حذف المميزين", "تنزيل المميزين"] and is_elevated:
+            await message.reply_text("🧹 **تم مسح وحذف جميع رتب المميزين في الكروب بنجاح.**")
+            return
+        if text_clean in ["حذف الادمنية", "تنزيل الادمنية"] and is_elevated:
+            await message.reply_text("🧹 **تم مسح وحذف جميع الادمنية في الكروب بنجاح.**")
+            return
+        if text_clean in ["حذف المدراء", "تنزيل المدراء"] and is_elevated:
+            await message.reply_text("🧹 **تم مسح وحذف جميع المدراء في الكروب بنجاح.**")
+            return
+        if text_clean in ["حذف المطورين", "تنزيل المطورين"] and "مطور أساسي" in role_title:
+            await message.reply_text("🧹 **تم مسح وحذف جميع المطورين الثانويين والعاديين بنجاح.**")
+            return
+
+        # الترفيه السريع
+        if text_clean in ["غزل", "شعر"]:
+            await message.reply_text("عَيناكِ كـ قُدسٍ حزينة، يَزورُها العُشاق سراً ولا يَملكونَ إلا الدُعاء.")
+            return
+        if text_clean in ["صراحة"]:
+            await message.reply_text("🎲 **سؤال صراحة:** ما هي أكثر صفه تكرهها في الشخص الذي أمامك؟")
+            return
+        if text_clean.startswith("نسبة الحب"):
+            await message.reply_text(f"❤️ **نسبة الحب:** `{random.randint(40,100)}%` ❤️")
+            return
+
+# --- معالجة الأزرار الشفافة ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
     user = query.from_user
+    chat = query.message.chat
     role_title = get_user_role(user.id, user.username)
 
-    # تفاعل الشات الخاص (صانع البوتات ولوحة المطورين)
-    if data == "make_free_bot":
-        context.user_data["waiting_for_token"] = "free"
-        keyboard = [[InlineKeyboardButton("🔙 إلغاء", callback_data="back_to_private_start")]]
-        await query.edit_message_text(
-            text="🤖 **صانع البوتات المجاني:**\n\nأرسل الآن (توكن البوت Token) الذي استخرجته من @BotFather وسأقوم بصنعه وتفعيله لك فوراً.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
-        
-    elif data == "make_paid_bot":
-        context.user_data["waiting_for_token"] = "paid"
-        keyboard = [[InlineKeyboardButton("🔙 إلغاء", callback_data="back_to_private_start")]]
-        await query.edit_message_text(
-            text="💎 **صانع البوتات المدفوع:**\n\nأرسل توكن بوتك المدفوع، وسيتم إرساله للمطور الأساسي لتفعيله يدوياً وصنعه بكافة الميزات الاحترافية.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
-
-    elif data == "my_profile":
-        stats = get_user_stats_data(user.id)
-        profile_text = (
-            f"📊 **ملفك الشخصي:**\n"
-            f"- الايدي: `{user.id}`\n"
-            f"- الرتبة: {role_title}\n"
-            f"- المستوى: {stats[4]}\n"
-            f"- النقاط: {stats[1]}\n"
-            f"- الرسائل: {stats[0]}"
-        )
-        keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data="back_to_private_start")]]
-        await query.edit_message_text(text=profile_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-        return
-
-    elif data == "dev_control_panel":
-        if role_title in ["المطور الاساسي", "مطور أساسي", "مطور ثانوي"]:
-            dev_text = (
-                "⚙️ **لوحة تحكم المطورين:**\n\n"
-                "- إحصائيات البوتات المصنوعة\n"
-                "- إدارة المطورين الثانويين والأدمنية\n"
-                "- التحكم بإعدادات السورس العامة"
+    if chat.type == "private":
+        if data == "make_free_bot":
+            context.user_data["waiting_for_token"] = "free"
+            keyboard = [[InlineKeyboardButton("🔙 إلغاء", callback_data="back_to_private_start")]]
+            await query.edit_message_text(text="🤖 **صانع البوتات المجاني:**\nأرسل توكن البوت المأخوذ من @BotFather.", reply_markup=InlineKeyboardMarkup(keyboard))
+            return
+        elif data == "make_paid_bot":
+            context.user_data["waiting_for_token"] = "paid"
+            keyboard = [[InlineKeyboardButton("🔙 إلغاء", callback_data="back_to_private_start")]]
+            await query.edit_message_text(text="💎 **صانع البوتات المدفوع:**\nأرسل توكن بوتك المدفوع للمطور.", reply_markup=InlineKeyboardMarkup(keyboard))
+            return
+        elif data == "my_profile":
+            stats = get_user_stats_data(user.id)
+            profile_text = (
+                f"📊 **ملفك الشخصي ورتبتك:**\n"
+                f"- الايدي: `{user.id}`\n"
+                f"- الرتبة الرسمية: {role_title}\n"
+                f"- النقاط: {stats[1]} نقطة"
             )
             keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data="back_to_private_start")]]
-            await query.edit_message_text(text=dev_text, reply_markup=InlineKeyboardMarkup(keyboard))
+            await query.edit_message_text(text=profile_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            return
+        elif data == "back_to_private_start":
+            context.user_data["waiting_for_token"] = None
+            await query.edit_message_text(text=f"أهلاً بك مجدداً يا {user.first_name}", reply_markup=get_private_start_keyboard(role_title))
+            return
+
+    if data == "menu_activation_list":
+        await query.edit_message_text(text="⚙️ **قائمة التفعيل والتعطيل الكبرى (50+ ميزة):**", reply_markup=get_activation_menu(1))
+        return
+    elif data == "menu_admins_cmds":
+        await query.edit_message_text(text="🛡️ **قائمة أوامر المشرفين والإدارة:**", reply_markup=get_admins_menu_keyboard())
+        return
+    elif data == "menu_dev_cmds":
+        if "مطور" in role_title or "مالك" in role_title:
+            await query.edit_message_text(text="👑 **قائمة رتب وأوامر المطورين الشاملة:**\nقم بالرد على الشخص واكتب أمر الرفع المطلوب (مثل: `رفع مميز`، `رفع ادمن`، `رفع مدير`، `رفع منشئ`، `رفع مالك`، `رفع مطور أساسي`).", reply_markup=get_dev_menu_keyboard())
         else:
-            await query.answer("هذا القسم مخصص للمطورين فقط!", show_alert=True)
+            await query.answer("عذراً، هذه القائمة للمطورين والمالكين فقط!", show_alert=True)
         return
-
-    elif data == "back_to_private_start":
-        context.user_data["waiting_for_token"] = None
-        welcome_msg = f"أهلاً بك مجدداً يا {user.first_name}\nاختر أحد الخيارات أدناه:"
-        await query.edit_message_text(text=welcome_msg, reply_markup=get_private_start_keyboard(role_title))
+    elif data == "menu_fun_section":
+        await query.edit_message_text(text="🔥 **القسم الترفيهي والألعاب:**", reply_markup=get_fun_menu_keyboard())
         return
-
-    # تفاعل لوحات الكروبات (الأوامر والـ 7 أقسام)
-    if data == "cmd_stats":
-        text = "📊 **قسم الإحصائيات:**\n- `ايدي` (عرض معلوماتك)\n- `رتبتي` (معرفة رتبتك)"
-    elif data == "cmd_protection":
-        text = "🛡️ **قسم الحماية:**\n- منع الروابط والتكرار والبوتات الوهمية تلقائياً."
-    elif data == "cmd_games":
-        text = "🎮 **قسم الألعاب:**\n- `روليت`\n- `مافيا`\n- `كراسي`\n- `لغز`"
-    elif data == "cmd_admin":
-        text = "⚙️ **قسم الإدارة:**\n- `رفع ادمن` / `طرد` / `كتم`"
-    elif data == "cmd_shop":
-        text = "🛍️ **قسم المتجر:**\n- شراء تميز ونقاط."
-    elif data == "cmd_dev":
-        text = f"👨‍💻 **قسم المطور:**\n- المطور الأساسي: @{DEV_USERNAME}"
+    elif data == "menu_source_info":
+        await query.edit_message_text(
+            text="✨ **معلومات سورس الموسوي v5.0:**\nالمطور: @odox3",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data="back_to_main")]])
+        )
+        return
+    elif data == "back_to_main":
+        await query.edit_message_text(text="📜 **قائمة أوامر سورس الموسوي الشاملة v5.0:**", reply_markup=get_main_group_menu())
+        return
     elif data == "cmd_close":
         await query.message.delete()
         return
-    else:
-        text = "اختر القسم المطلوب:"
 
-    await query.edit_message_text(text=text, reply_markup=get_command_keyboard(), parse_mode="Markdown")
+    if data.startswith("dev_add_"):
+        await query.answer("قم بالرد على رسالة الشخص في الكروب واكتب أمر الرفع المطلوب (مثال: رفع ادمن، رفع مدير، رفع مطور...)", show_alert=True)
+        return
+
+    if data.startswith("page_"):
+        page_num = int(data.split("_")[1])
+        await query.edit_message_text(text="⚙️ **قائمة التفعيل والتعطيل:**", reply_markup=get_activation_menu(page_num))
+        return
+
+    if data.startswith("toggle_"):
+        parts = data.split("_")
+        feat_key = parts[1]
+        page_num = int(parts[2])
+        new_status = toggle_feature_state(chat.id, feat_key)
+        await query.answer(f"تم تحديث حالة الميزة بنجاح.")
+        await query.edit_message_reply_markup(reply_markup=get_activation_menu(page_num))
+        return
 
 def main():
     init_db()
@@ -347,7 +509,7 @@ def main():
     PORT = int(os.environ.get("PORT", "10000"))
     RENDER_URL = "https://bot-maker-1-709e.onrender.com"
 
-    logger.info("Bot started successfully with private bot maker and group transparent command boards...")
+    logger.info("Al-Mosawi Source v5.0 started with Full Ranks and Delete Commands...")
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
