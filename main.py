@@ -1,5 +1,4 @@
 import os
-import asyncio
 from pyrogram import Client, filters
 
 API_ID = 36216701
@@ -50,18 +49,11 @@ async def make_bot(client, message):
 
 @app.on_message(filters.command("games"))
 async def games_menu(client, message):
-    await message.reply_text("🎮 **أهلاً بك في الألعاب الترفيهية.**")
+    await message.reply_text("🎮 **أهلاً بك في الألعاب الترفيهية ضمن سورس تي بي.**")
 
 @app.on_message(filters.command("youtube"))
 async def youtube_search(client, message):
-    await message.reply_text("📺 **قسم البحث في اليوتيوب.**")
-
-async def main():
-    print("Bot is starting...")
-    await app.start()
-    print("Bot is online!")
-    await asyncio.Event().wait()
+    await message.reply_text("📺 **قسم البحث في اليوتيوب ضمن سورس تي بي.**")
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
+    app.run()
