@@ -1,5 +1,5 @@
 # ==============================================================================
-# سورس اندريس الأسطوري 5.3 - النسخة العملاقة المتكاملة (أوامر الحماية، الألعاب، الردود)
+# سورس اندريس الأسطوري 5.3 - النسخة الكاملة والمحدثة (جاهزة للتشغيل)
 # ==============================================================================
 
 import os
@@ -30,7 +30,7 @@ TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 DEV_USERNAME = os.getenv("DEV_USERNAME", "odox3")
 
 # ------------------------------------------------------------------------------
-# قاعدة البيانات الموسعة
+# قاعدة البيانات الشاملة
 # ------------------------------------------------------------------------------
 def init_mega_database():
     conn = sqlite3.connect("bot_massive_source.db", check_same_thread=False)
@@ -75,7 +75,7 @@ init_mega_database()
 USER_STATES = {}
 
 # ------------------------------------------------------------------------------
-# نظام الحماية الشامل والمتقدم جداً للمجموعات
+# نظام الحماية الشامل والمتقدم للمجموعات
 # ------------------------------------------------------------------------------
 async def security_guard_massive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.effective_chat:
@@ -123,23 +123,23 @@ async def security_guard_massive(update: Update, context: ContextTypes.DEFAULT_T
         return
 
 # ------------------------------------------------------------------------------
-# إدارة الأوامر والردود المخصصة (اضف رد / اضف امر)
+# إدارة الأوامر والردود المخصصة (اضف رد / اضف امر) بتفعيل فوري ومباشر
 # ------------------------------------------------------------------------------
 async def custom_commands_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_chat or update.effective_chat.type not in ["group", "supergroup"]:
+    if not update.message or not update.message.text:
         return
     
     text = update.message.text.strip()
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
 
-    if text == "اضف رد":
-        USER_STATES[user_id] = {"action": "wait_kw", "chat_id": chat_id}
-        await update.message.reply_text("📥 ارسل الآن **الكلمة** التي تريد أن يرد عليها البوت:", parse_mode="Markdown")
-        return
-    elif text == "اضف امر":
+    if text == "اضف امر":
         USER_STATES[user_id] = {"action": "wait_old", "chat_id": chat_id}
-        await update.message.reply_text("📥 ارسل الآن **الأمر القديم** لاختصاره:", parse_mode="Markdown")
+        await update.message.reply_text("📥 حسناً، ارسل الآن **الأمر القديم** لاختصاره:", parse_mode="Markdown")
+        return
+    elif text == "اضف رد":
+        USER_STATES[user_id] = {"action": "wait_kw", "chat_id": chat_id}
+        await update.message.reply_text("📥 حسناً، ارسل الآن **الكلمة** التي تريد أن يرد عليها البوت:", parse_mode="Markdown")
         return
     elif text in ["حذف رد", "الغاء رد"]:
         USER_STATES[user_id] = {"action": "wait_del_r", "chat_id": chat_id}
@@ -365,7 +365,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📋 عرض الأوامر الشاملة", callback_data="p_m1")],
         [InlineKeyboardButton("🎮 قاعة الألعاب والمستويات", callback_data="games_menu")]
     ]
-    await update.message.reply_text(f"مرحباً بك عزيزي [{user.first_name}](tg://user?id={user.id}) في سورس اندريس 5.3 المطور العملاق!", reply_markup=InlineKeyboardMarkup(kb), parse_Mode="Markdown")
+    await update.message.reply_text(f"مرحباً بك عزيزي [{user.first_name}](tg://user?id={user.id}) في سورس اندريس 5.3 المطور العملاق!", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 def main():
     if TOKEN == "YOUR_BOT_TOKEN_HERE":
@@ -379,8 +379,8 @@ def main():
     app.add_handler(CommandHandler("الأوامر", show_commands_panel))
     app.add_handler(CommandHandler("games", massive_games_menu))
 
-    app.add_handler(MessageHandler(filters.Regex("^(اضف رد|اضف امر)$"), custom_commands_handler))
-    app.add_handler(MessageHandler(filters.Regex("^(حذف رد|حذف امر|الغاء رد|الغاء امر)$"), custom_commands_handler))
+    # معالج مباشر ومضبوط لأوامر الإضافة والحذف النصية التفاعلية
+    app.add_handler(MessageHandler(filters.Regex("^(اضف رد|اضف امر|حذف رد|حذف امر|الغاء رد|الغاء امر)$"), custom_commands_handler))
 
     app.add_handler(CallbackQueryHandler(panel_callback_query, pattern="^p_|^back_p$"))
     app.add_handler(CallbackQueryHandler(massive_games_callback, pattern="^mg_"))
