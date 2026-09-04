@@ -3,6 +3,13 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
+# تهيئة الـ event loop خصيصاً لإصدارات بايثون الحديثة
+try:
+    loop = asyncio.get_event_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
 API_ID = 36216701
 API_HASH = "f95bac8547d34e32dd37ec3cdbe28558"
 BOT_TOKEN = os.getenv("BOT_TOKEN")
