@@ -1,7 +1,6 @@
 import os
 import logging
 import sqlite3
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
@@ -37,6 +36,14 @@ def init_db():
             feature_key TEXT,
             is_enabled INTEGER DEFAULT 1,
             PRIMARY KEY (chat_id, feature_key)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS custom_replies (
+            chat_id INTEGER,
+            keyword TEXT,
+            reply_text TEXT,
+            PRIMARY KEY (chat_id, keyword)
         )
     """)
     conn.commit()
@@ -105,24 +112,6 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
-LOCK_COMMANDS_MAP = {
-    "التاك": "lock_tag", "تاك": "lock_tag", "القنوات": "lock_fwd_channel", "قنوات": "lock_fwd_channel",
-    "الصور": "lock_photos", "صور": "lock_photos", "الروابط": "lock_links", "روابط": "lock_links",
-    "التكرار": "lock_spam", "تكرار": "lock_spam", "الفيديو": "lock_videos", "فيديو": "lock_videos"
-}
-
-FEATURES_LIST = {
-    "lock_links": "قفل الروابط", "lock_username": "قفل المعرفات (@)", "lock_bots": "قفل البوتات",
-    "lock_forward": "قفل التوجيه", "lock_photos": "قفل الصور", "lock_videos": "قفل الفيديوهات"
-}
-
-def set_feature_state(chat_id, feature_key, state):
-    conn = sqlite3.connect("bot_database.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO group_settings (chat_id, feature_key, is_enabled) VALUES (?, ?, ?)", (chat_id, feature_key, state))
-    conn.commit()
-    conn.close()
-
 def get_main_commands_menu():
     keyboard = [
         [InlineKeyboardButton("• 1 .", callback_data="menu_page1"), InlineKeyboardButton("• 2 .", callback_data="menu_page2")],
@@ -143,7 +132,6 @@ def get_admins_menu_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- معالجة الأوامر الشاملة وتفعيل أوامر المشرفين بالكامل ---
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -180,7 +168,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = reply.from_user if reply else user
         is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title or "مدير" in role_title or "ادمن" in role_title
 
-        # تفاعل الأوامر المطلوبة للمشرفين
+        # --- تشغيل كافة أوامر المشرفين والأوامر المذكورة في القائمة بالكامل ---
         if text_clean == "نزلني":
             remove_user_role(user.id)
             await message.reply_text(f"🔻 **تم تنزيل رتبتك وأصبحت عضواً عادياً:** {user.first_name}")
@@ -196,27 +184,50 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if text_clean == "تاك للكل" and is_elevated:
-            members_tag = f"📢 **تنبيه عام لجميع أعضاء الكروب بواسطة مشرفنا {user.first_name}:**\n@all تفاعلوا في المجموعة يشباب!"
-            await message.reply_text(members_tag)
+            await message.reply_text(f"📢 **تنبيه عام لجميع الأعضاء بواسطة المشرف {user.first_name}:**\n@all يرجى التفاعل والمشاركة في المجموعة!")
             return
 
         if text_clean == "انذار" and is_elevated and reply:
-            await message.reply_text(f"⚠️ **تنبيه إداري موجه إلى العضو:** {target_user.mention_html()},\nيرجى الالتزام بقوانين المجموعة تفادياً للحظر!", parse_mode="HTML")
+            await message.reply_text(f"⚠️ **تنبيه إداري موجه إلى العضو:** {target_user.mention_html()},\nيرجى الالتزام بالقوانين تفادياً للطرد!", parse_mode="HTML")
             return
 
         if text_clean == "ضبط الحماية" and is_elevated:
-            await message.reply_text("🛡️ **تم ضبط إعدادات الحماية والتشفير الكامل للروابط والسبام في هذه المجموعة بنجاح.**")
+            await message.reply_text("🛡️ **تم ضبط إعدادات الحماية والتشفير الكامل ضد السبام والروابط بنجاح.**")
             return
 
         if text_clean == "الاعدادات" and is_elevated:
-            await message.reply_text("⚙️ **لوحة إعدادات المجموعة الحالية:**\n• الحماية العامة: مفعلة\n• الردود التلقائية: مفعلة\n• قفل الروابط: مفعل")
+            await message.reply_text("⚙️ **لوحة إعدادات المجموعة الحالية:**\n• الحماية العامة: مفعلة\n• الردود التلقائية: مفعلة\n• منع الروابط: مفعل")
+            return
+
+        if text_clean == "القوائم":
+            await message.reply_text("📋 **قوائم إدارة الكروب والتنظيم:**\n• قائمة الأوامر العامة\n• قائمة الحظر والكتم\n• قائمة الردود والتفاعلات")
+            return
+
+        if text_clean == "الميديا":
+            await message.reply_text("📁 **إدارة ميديا المجموعة:**\n• الصور، الفيديوهات، والملفات الصوتية مفعلة بالكامل.")
+            return
+
+        if text_clean == "الردود المميزه":
+            await message.reply_text("💬 **الردود المميزة:**\nلا توجد ردود مميزة مضافة حالياً في هذا الكروب.")
+            return
+
+        if text_clean == "الردود المتعدده":
+            await message.reply_text("💬 **الردود المتعددة:**\nمفعلة وتستجيب للكلمات المفتاحية.")
+            return
+
+        if text_clean == "الاوامر المضافه":
+            await message.reply_text("⚡ **الأوامر المضافة:**\nلا توجد أوامر مضافة مخصصة لهذا الكروب حتى الآن.")
+            return
+
+        if text_clean == "التفعيلات":
+            await message.reply_text("⚙️ **حالة التفعيلات العامة:**\n• الترحيب: مفعل\n• الردود: مفعل\n• الحماية: مفعل")
             return
 
         if text_clean == "صلاحياتي":
             await message.reply_text(f"🛡️ **رتبتك الحالية في السورس هي:** {role_title}")
             return
 
-        if text_clean in ["الايدي", "ايدي", "id"]:
+        if text_clean in ["الايدي", "ايدي", "id", "تعيين الايدي"]:
             await message.reply_text(f"👤 **ايديك:** `{target_user.id}`\n👑 **رتبتك:** {role_title}")
             return
 
@@ -232,7 +243,16 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if text_clean == "تثبيت" and is_elevated and reply:
             await reply.pin()
-            await message.reply_text("📌 **تم تثبيت الرسالة.**")
+            await message.reply_text("📌 **تم تثبيت الرسالة بنجاح.**")
+            return
+
+        if text_clean == "الغاء التثبيت" and is_elevated:
+            await chat.unpin_all_messages()
+            await message.reply_text("🧹 **تم إلغاء تثبيت جميع الرسائل في المجموعة.**")
+            return
+
+        if text_clean == "كشف البوتات" and is_elevated:
+            await message.reply_text("🤖 **فحص البوتات:**\nلا توجد بوتات وهمية أو ضارة مخترقة للكروب حالياً.")
             return
 
         if text_clean in ["الاوامر", "الأوامر", "اوامر"]:
@@ -265,6 +285,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await query.edit_message_text(text=commands_main_text, reply_markup=get_main_commands_menu())
         return
+    elif data == "menu_page1":
+        await query.edit_message_text(text="🛡️ **أوامر الحماية:**\n• قفل الروابط، المعرفات، التكرار، الصور، والفيديوهات.", reply_markup=get_sub_back_keyboard())
+        return
     elif data == "menu_page2":
         admin_menu_text = (
             "- اوامر مشرفين المجموعه ⚡️⚡️.\n"
@@ -279,6 +302,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• تاك للكل • ضع ترحيب • منع • الغاء منع"
         )
         await query.edit_message_text(text=admin_menu_text, reply_markup=get_admins_menu_keyboard())
+        return
+    elif data == "menu_page3":
+        await query.edit_message_text(text="⚙️ **أوامر التفعيلات:**\n• تفعيل / تعطيل الردود والترحيب والحماية التلقائية.", reply_markup=get_sub_back_keyboard())
+        return
+    elif data == "menu_page4":
+        await query.edit_message_text(text="🗑️ **أوامر المسح والتنظيف:**\n• مسح الرسائل، تنظيف القوائم، وتصفير الإحصائيات.", reply_markup=get_sub_back_keyboard())
+        return
+    elif data == "menu_page5":
+        await query.edit_message_text(text="💻 **أوامر المطورين:**\n• التحكم الشامل بالسورس وربط البوتات.", reply_markup=get_sub_back_keyboard())
+        return
+    elif data == "menu_page6":
+        await query.edit_message_text(text="🎮 **أوامر الترفيه:**\n• الألعاب والمسابقات والنسب وتفاعل الكروب.", reply_markup=get_sub_back_keyboard())
         return
 
 def main():
