@@ -2,7 +2,7 @@ import os
 import logging
 import sqlite3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -10,7 +10,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
-DEV_USERNAME = "odox3"  # معرف المطور
+DEV_USERNAME = "odox3"  # معرف المطور الأساسي
 CHANNEL_USERNAME = "@odox6"  # قناة السورس
 
 # --- قاعدة البيانات الشاملة ---
@@ -112,7 +112,7 @@ def activate_group(chat_id, chat_title):
     conn.commit()
     conn.close()
 
-# --- خريطة ربط الكلمات بالنظام الداخلي للأقفال ---
+# --- خريطة ربط الأوامر بالأقفال الداخلية ---
 LOCK_COMMANDS_MAP = {
     "التاك": "lock_tag", "تاك": "lock_tag",
     "القنوات": "lock_fwd_channel", "قنوات": "lock_fwd_channel",
@@ -184,7 +184,7 @@ def toggle_feature_state(chat_id, feature_key):
     set_feature_state(chat_id, feature_key, new_state)
     return new_state
 
-# --- لوحات الأزرار الشفافة المطابقة للصورة تماماً ---
+# --- الأزرار الشفافة الرئيسية (من 1 إلى 6 مثل الصورة تماماً) ---
 def get_main_commands_menu():
     keyboard = [
         [
@@ -265,7 +265,6 @@ def get_fun_menu_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- أزرار الشات الخاص ---
 def get_private_start_keyboard():
     keyboard = [
         [
@@ -287,7 +286,7 @@ def get_private_start_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# --- معالجة الرسائل والأوامر ---
+# --- معالج الرسائل والأوامر الشامل ---
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -338,7 +337,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
         return
 
-    # 2. المجموعات (الكروبات)
+    # 2. المجموعات والكروبات
     if chat.type in ["group", "supergroup"]:
         is_photo_msg = bool(message.photo)
         save_user(user.id, user.username, user.full_name)
@@ -349,7 +348,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("✅ **تم تفعيل سورس Tp والحماية الشاملة في هذه المجموعة بنجاح!**\nاكتب `الاوامر` لإظهار القائمة الرئيسية.")
             return
 
-        # --- تشغيل أوامر القفل والفتح المباشرة في الكروب ---
         if text_clean.startswith("قفل ") or text_clean.startswith("فتح "):
             parts = text_clean.split(" ", 1)
             action = parts[0]
@@ -394,75 +392,60 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # --- نظام الرفع الشامل ---
         is_elevated = "مطور" in role_title or "مالك" in role_title or "منشئ" in role_title
 
-        if text_clean == "رفع مميز" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "vip")
-                await message.reply_text(f"⭐ **تم رفع العضو (مميز) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع مميز" and is_elevated and reply:
+            set_user_role(target_user.id, "vip")
+            await message.reply_text(f"⭐ **تم رفع العضو (مميز) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع ادمن" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "admin")
-                await message.reply_text(f"🛡️ **تم رفع العضو (ادمن) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع ادمن" and is_elevated and reply:
+            set_user_role(target_user.id, "admin")
+            await message.reply_text(f"🛡️ **تم رفع العضو (ادمن) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مدير" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "manager")
-                await message.reply_text(f"⚙️ **تم رفع العضو (مدير) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع مدير" and is_elevated and reply:
+            set_user_role(target_user.id, "manager")
+            await message.reply_text(f"⚙️ **تم رفع العضو (مدير) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع منشئ" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "creator")
-                await message.reply_text(f"🛠️ **تم رفع العضو (منشئ) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع منشئ" and is_elevated and reply:
+            set_user_role(target_user.id, "creator")
+            await message.reply_text(f"🛠️ **تم رفع العضو (منشئ) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع منشئ أساسي" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "creator_basic")
-                await message.reply_text(f"🏗️ **تم رفع العضو (منشئ أساسي) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع منشئ أساسي" and is_elevated and reply:
+            set_user_role(target_user.id, "creator_basic")
+            await message.reply_text(f"🏗️ **تم رفع العضو (منشئ أساسي) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مالك" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "owner")
-                await message.reply_text(f"💎 **تم رفع العضو (مالك) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع مالك" and is_elevated and reply:
+            set_user_role(target_user.id, "owner")
+            await message.reply_text(f"💎 **تم رفع العضو (مالك) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مالك أساسي" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "owner_basic")
-                await message.reply_text(f"🏛️ **تم رفع العضو (مالك أساسي) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع مالك أساسي" and is_elevated and reply:
+            set_user_role(target_user.id, "owner_basic")
+            await message.reply_text(f"🏛️ **تم رفع العضو (مالك أساسي) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مطور" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "dev")
-                await message.reply_text(f"💻 **تم رفع العضو (مطور) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع مطور" and is_elevated and reply:
+            set_user_role(target_user.id, "dev")
+            await message.reply_text(f"💻 **تم رفع العضو (مطور) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مطور ثانوي" and is_elevated:
-            if reply:
-                set_user_role(target_user.id, "dev_secondary")
-                await message.reply_text(f"⚡ **تم رفع العضو (مطور ثانوي) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع مطور ثانوي" and is_elevated and reply:
+            set_user_role(target_user.id, "dev_secondary")
+            await message.reply_text(f"⚡ **تم رفع العضو (مطور ثانوي) بنجاح:** {target_user.first_name}")
             return
-        if text_clean == "رفع مطور أساسي" and "مطور أساسي" in role_title:
-            if reply:
-                set_user_role(target_user.id, "dev_primary")
-                await message.reply_text(f"👑 **تم رفع العضو (مطور أساسي) بنجاح:** {target_user.first_name}")
+        if text_clean == "رفع مطور أساسي" and "مطور أساسي" in role_title and reply:
+            set_user_role(target_user.id, "dev_primary")
+            await message.reply_text(f"👑 **تم رفع العضو (مطور أساسي) بنجاح:** {target_user.first_name}")
+            return
+        if text_clean in ["تنزيل", "تنزيل رتبة"] and is_elevated and reply:
+            remove_user_role(target_user.id)
+            await message.reply_text(f"❌ **تم تنزيل العضو وإرجاع رتبته إلى (عضو عادي):** {target_user.first_name}")
             return
 
-        if text_clean in ["تنزيل", "تنزيل رتبة"] and is_elevated:
-            if reply:
-                remove_user_role(target_user.id)
-                await message.reply_text(f"❌ **تم تنزيل العضو وإرجاع رتبته إلى (عضو عادي):** {target_user.first_name}")
-            return
-
-# --- معالجة الأزرار الشفافة ---
+# --- معالج الأزرار الشفافة ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-    user = query.from_user
     chat = query.message.chat
 
-    # الشات الخاص
     if chat.type == "private":
         if data == "make_free_bot":
             context.user_data["waiting_for_token"] = "free"
@@ -500,7 +483,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text=welcome_msg, reply_markup=get_private_start_keyboard())
             return
 
-    # الكروبات وأزرار المنيو من 1 للـ 6
     if data == "back_to_main_cmds":
         commands_main_text = (
             "• اليك اوامر البوت 5.1 .\n\n"
@@ -519,17 +501,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- تستطيع القفل كالاتي :\n\n"
             "• التاك • القنوات\n"
             "• الصور • الروابط\n"
-            "• الفشار • التكرار\n"
-            "• الفيديو • الدخول\n"
-            "• الاضافه • الاغاني\n"
-            "• الصوت • الملفات\n"
-            "• التفليش • الدردشه\n"
-            "• الجهات • السيلفي\n"
-            "• التثبيت • الشارحه\n"
-            "• الكلايش • البوتات\n"
-            "• التوجيه • التعديل\n"
-            "• المعرفات • الكيبورد\n"
-            "• الفاريه • الانجليزيه\n"
+            "• التكرار • الفيديو\n"
+            "• الدخول • الاضافه\n"
+            "• الاغاني • الصوت\n"
+            "• الملفات • التفليش\n"
+            "• الدردشه • الجهات\n"
+            "• السيلفي • التثبيت\n"
+            "• البوتات • التوجيه\n"
+            "• التعديل • المعرفات\n"
+            "• الكيبورد • الانجليزيه\n"
             "• الملصقات • الاشعارات\n"
             "• الماركداون • المتحركه"
         )
@@ -579,7 +559,7 @@ def main():
     PORT = int(os.environ.get("PORT", "10000"))
     RENDER_URL = "https://bot-maker-1-709e.onrender.com"
 
-    logger.info("Tp Source v5.1 started with exact 1-6 buttons layout...")
+    logger.info("Tp Source v5.1 complete code running successfully...")
     application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
