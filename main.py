@@ -2,6 +2,7 @@ import os
 import logging
 import sqlite3
 import random
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
 DEV_USERNAME = "odox3"       # ◄--- حقوقك واسم معرفك الأساسي
 CHANNEL_USERNAME = "@odox6"
+START_TIME = time.time()
 
 # =====================================================================
 # --- قاعدة البيانات وأنظمة التخزين الموسعة (Database & Storage) ---
@@ -57,6 +59,14 @@ def init_db():
             keyword TEXT,
             reply_text TEXT,
             PRIMARY KEY (chat_id, keyword)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS custom_commands (
+            chat_id INTEGER,
+            command_name TEXT,
+            command_output TEXT,
+            PRIMARY KEY (chat_id, command_name)
         )
     """)
     conn.commit()
@@ -149,6 +159,50 @@ def set_feature_status(chat_id, feature_key, status):
     conn.commit()
     conn.close()
 
+def add_custom_reply(chat_id, keyword, reply_text):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO custom_replies (chat_id, keyword, reply_text) VALUES (?, ?, ?)", (chat_id, keyword, reply_text))
+    conn.commit()
+    conn.close()
+
+def delete_custom_reply(chat_id, keyword):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM custom_replies WHERE chat_id = ? AND keyword = ?", (chat_id, keyword))
+    conn.commit()
+    conn.close()
+
+def get_custom_reply(chat_id, keyword):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT reply_text FROM custom_replies WHERE chat_id = ? AND keyword = ?", (chat_id, keyword))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def add_custom_command(chat_id, cmd_name, cmd_output):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO custom_commands (chat_id, command_name, command_output) VALUES (?, ?, ?)", (chat_id, cmd_name, cmd_output))
+    conn.commit()
+    conn.close()
+
+def delete_custom_command(chat_id, cmd_name):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM custom_commands WHERE chat_id = ? AND command_name = ?", (chat_id, cmd_name))
+    conn.commit()
+    conn.close()
+
+def get_custom_command(chat_id, cmd_name):
+    conn = sqlite3.connect("bot_database.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT command_output FROM custom_commands WHERE chat_id = ? AND command_name = ?", (chat_id, cmd_name))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
+
 # =====================================================================
 # --- واجهات وقوائم الأزرار الشاملة (Inline Keyboards & Menus) ---
 # =====================================================================
@@ -233,7 +287,83 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text_clean = "التفعيلات"
 
         # =====================================================================
-        # --- قسم أوامر القفل والفتح الموسعة والشاملة (Locks & Unlocks) ---
+        # --- أمر ترتيب الأوامر (المطلوب في صورتك) ---
+        # =====================================================================
+        if text_clean == "ترتيب الاوامر":
+            markup_order = InlineKeyboardMarkup([
+                [InlineKeyboardButton("روابط كروبات 🍓", url=f"https://t.me/{DEV_USERNAME}")]
+            ])
+            await message.reply_text("- : تم ترتيب الاوامر الاساسية بنجاح,", reply_markup=markup_order)
+            return
+
+        # =====================================================================
+        # --- نظام إضافة وحذف الأوامر المخصصة (Custom Commands) ---
+        # =====================================================================
+        if text_clean.startswith("اضف امر ") and is_elevated and reply:
+            cmd_key = text_clean.replace("اضف امر ", "").strip()
+            cmd_val = reply.text or reply.caption or "محتوى الأمر المخصص"
+            add_custom_command(chat.id, cmd_key, cmd_val)
+            await message.reply_text(f"➕ **تم إضافة الأمر الجديد بنجاح:** `{cmd_key}`\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean.startswith("حذف امر ") and is_elevated:
+            cmd_key = text_clean.replace("حذف امر ", "").strip()
+            delete_custom_command(chat.id, cmd_key)
+            await message.reply_text(f"🗑️ **تم حذف الأمر بنجاح:** `{cmd_key}`\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        # فحص وجود أمر مخصص مسجل
+        custom_cmd_output = get_custom_command(chat.id, text_clean)
+        if custom_cmd_output:
+            await message.reply_text(custom_cmd_output)
+            return
+
+        # =====================================================================
+        # --- نظام إضافة وحذف الردود التلقائية (Custom Replies) ---
+        # =====================================================================
+        if text_clean.startswith("اضف رد ") and is_elevated and reply:
+            rep_key = text_clean.replace("اضف رد ", "").strip()
+            rep_val = reply.text or reply.caption or "رد تلقائي جديد"
+            add_custom_reply(chat.id, rep_key, rep_val)
+            await message.reply_text(f"💬 **تم إضافة الرد التلقائي بنجاح:** `{rep_key}`\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean.startswith("حذف رد ") and is_elevated:
+            rep_key = text_clean.replace("حذف رد ", "").strip()
+            delete_custom_reply(chat.id, rep_key)
+            await message.reply_text(f"🗑️ **تم حذف الرد التلقائي بنجاح:** `{rep_key}`\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        # فحص وجود رد تلقائي مخصص للرسالة
+        custom_reply_text = get_custom_reply(chat.id, text_clean)
+        if custom_reply_text:
+            await message.reply_text(custom_reply_text)
+            return
+
+        # =====================================================================
+        # --- المميزات القوية الجديدة المقترحة (New Powerful Features) ---
+        # =====================================================================
+        if text_clean in ["سرعة البوت", "البنج", "السرعة"]:
+            ping_time = round((time.time() - START_TIME) % 1, 3) * 1000
+            await message.reply_text(f"⚡ **سرعة استجابة السورس (البنج):** `{int(ping_time)} ms`\n• يعمل بكفاءة عالية على سيرفرات الويب هوك\n• حقوق السورس: @{DEV_USERNAME}")
+            return
+
+        if text_clean in ["توب الكروب", "لوحة الشرف", "الترند"]:
+            conn = sqlite3.connect("bot_database.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, points FROM user_stats ORDER BY points DESC LIMIT 5")
+            top_users = cursor.fetchall()
+            conn.close()
+            
+            top_text = "🏆 **قائمة الشرف والترند الأنشط في الكروب:**\n\n"
+            for idx, (uid, pts) in enumerate(top_users, 1):
+                top_text += f"{idx} • الأيدي (`{uid}`) - النقاط: **{pts}** نقطة 🔥\n"
+            top_text += f"\n• حقوق السورس: @{DEV_USERNAME}"
+            await message.reply_text(top_text)
+            return
+
+        # =====================================================================
+        # --- قسم أوامر القفل والفتح الموسعة الشاملة (Locks & Unlocks) ---
         # =====================================================================
         if text_clean == "قفل الروابط" and is_elevated:
             set_lock(chat.id, "links", True)
