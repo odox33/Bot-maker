@@ -23,31 +23,30 @@ TOKEN = os.environ.get("BOT_TOKEN", "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8F
 DEV_USERNAME = "@odox3"
 CHANNEL_USERNAME = "@odox6"
 
-# قواميس التخزين المؤقت للردود والأوامر المضافة
+# قواميس التخزين المؤقت للردود والأوامر والمميزات
 custom_replies = {}  
 custom_commands = {} 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """الواجهة الكاملة وأقسام سورس تي بي (Tb Source)"""
+    """الواجهة الأساسية والمرتبة لـ Tb Source"""
     text = (
         "🤖 **مرحباً بك في لوحة تحكم Tb Source الشاملة**\n\n"
-        "📂 **الأقسام والأوامر الرئيسية:**\n"
+        "📂 **قائمة الأوامر والخدمات:**\n"
         "1️⃣ `/start` أو `اوامر` - عرض لوحة الأوامر الرئيسية\n"
-        "2️⃣ `الرابط` - جلب رابط المجموعة (للإداريين)\n"
+        "2️⃣ `الرابط` أو `رابط` - جلب رابط المجموعة الفوري\n"
         "3️⃣ `المنشئين` - عرض قائمة المنشئين الأساسيين\n"
-        "4️⃣ `ايدي` أو `ID` - معرفة معلوماتك والأيدي\n"
-        "5️⃣ `ألعاب` - عرض قسم الألعاب والترفيه\n"
-        "6️⃣ `اضف رد [الكلمة] // [الرد]` - إضافة رد تلقائي\n"
+        "4️⃣ `ايدي` أو `ID` - معرفة معلوماتك والأيدي الخاص بك\n"
+        "5️⃣ `ألعاب` - الدخول لقسم الألعاب والترفيه\n"
+        "6️⃣ `اضف رد [الكلمة] // [الرد]` - إضافة رد تلقائي جديد\n"
         "7️⃣ `حذف رد [الكلمة]` - حذف رد تلقائي\n"
         "• `اضف امر [الامر] // [الرد]` - إضافة أمر مخصص\n"
         "• `حذف امر [الامر]` - حذف أمر مخصص\n\n"
-        "🛡️ *حماية الجروبات (منع الروابط وتليجرام) مفعلة تلقائياً.*"
+        "🛡️ *الحماية اللانهائية والترحيب بالمنضمين مفعلة تلقائياً.*"
     )
     
-    # أزرار تفاعلية لوحة المطور وقناة السورس والألعاب
     keyboard = [
         [InlineKeyboardButton("👑 لوحة المطور وصنع البوتات", callback_data="dev_panel")],
-        [InlineKeyboardButton("🎮 قسم الألعاب والتسلية", callback_data="games_section")],
+        [InlineKeyboardButton("🎮 قسم الألعاب والترفيه", callback_data="games_section")],
         [InlineKeyboardButton("📢 قناة سورس تي بي (Tb Source)", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -56,21 +55,21 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text, parse_mode="Markdown", reply_markup=reply_markup)
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالجة الأزرار الشفافة والأقسام الداخلية"""
+    """إدارة الأزرار الشفافة واللوحات الداخلية"""
     query = update.callback_query
     await query.answer()
 
     if query.data == "dev_panel":
         dev_text = (
             "🛠 **لوحة مطور سورس تي بي (Tb Source)**\n\n"
-            "اختر نوع الخدمة المطلوبة:\n\n"
+            "اختر نوع الخدمة التي ترغب بها:\n\n"
             "🤖 **1. صنع بوت مجاني:**\n"
             "• يستطيع المستخدم إنشاء بوت خاص به مجاناً.\n"
-            f"• **ملاحظة:** يتم وضع حقوق سورس تي بي ({CHANNEL_USERNAME}) تلقائياً.\n"
+            f"• **ملاحظة:** يتم وضع حقوق سورس تي بي وقناتنا ({CHANNEL_USERNAME}) تلقائياً.\n"
             f"• للاستفسار: {DEV_USERNAME}\n\n"
             "💎 **2. صنع بوت مدفوع (بدون حقوق):**\n"
             "• بوت احترافي متكامل وخالٍ من الحقوق تماماً.\n"
-            f"• تتطلب هذه الخدمة مراسلتي حصراً: [اضغط هنا لمراسلة المطور](https://t.me/{DEV_USERNAME.replace('@', '')})"
+            f"• تتطلب هذه الخدمة مراسلتي حصراً لتنفيذها: [اضغط هنا لمراسلة المطور](https://t.me/{DEV_USERNAME.replace('@', '')})"
         )
         
         keyboard = [
@@ -84,16 +83,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "games_section":
         games_text = (
             "🎮 **قسم الألعاب والترفيه في سورس تي بي:**\n\n"
-            "• لعبة الصراحة والجرأة\n"
-            "• لعبة حظك اليوم\n"
-            "• لعبة تخمين الأرقام\n\n"
-            "💡 *قريباً سيتم إضافة المزيد من الألعاب التفاعلية الممتعة للجروبات!*"
+            "• 🎯 لعبة الحظ السريع\n"
+            "• 🧠 لعبة أسئلة الذكاء\n"
+            "• ⚔️ لعبة التحدي والصراحة\n\n"
+            "💡 *اختر اللعبة وابدأ التسلية مع أصدقائك في المجموعة!*"
         )
         keyboard = [
+            [InlineKeyboardButton("🎯 لعبة الحظ", callback_data="game_luck"), InlineKeyboardButton("🧠 أسئلة ذكاء", callback_data="game_quiz")],
             [InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data="back_home")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(games_text, parse_mode="Markdown", reply_markup=reply_markup)
+
+    elif query.data == "game_luck":
+        await query.answer("🎲 حظك اليوم: رائع جداً، ستكون موفقاً في كل خطواتك اليوم! ✨", show_alert=True)
+    elif query.data == "game_quiz":
+        await query.answer("🧠 سؤال: ما هو الشيء الذي يبكي بلا عيون؟ (المطر) 🌧️", show_alert=True)
 
     elif query.data == "free_bot":
         await query.message.reply_text(
@@ -113,23 +118,35 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "back_home":
         text = (
             "🤖 **مرحباً بك في لوحة تحكم Tb Source الشاملة**\n\n"
-            "📂 **الأقسام والأوامر الرئيسية:**\n"
+            "📂 **قائمة الأوامر والخدمات:**\n"
             "1️⃣ `/start` أو `اوامر` - عرض لوحة الأوامر الرئيسية\n"
-            "2️⃣ `الرابط` - جلب رابط المجموعة\n"
+            "2️⃣ `الرابط` - جلب رابط المجموعة الفوري\n"
             "3️⃣ `المنشئين` - عرض قائمة المنشئين الأساسيين\n"
-            "4️⃣ `ايدي` - معرفة معلوماتك والأيدي\n"
-            "5️⃣ `ألعاب` - عرض قسم الألعاب والتسلية"
+            "4️⃣ `ايدي` - معرفة معلوماتك الشخصية\n"
+            "5️⃣ `ألعاب` - قسم التسلية والترفيه"
         )
         keyboard = [
             [InlineKeyboardButton("👑 لوحة المطور وصنع البوتات", callback_data="dev_panel")],
-            [InlineKeyboardButton("🎮 قسم الألعاب والتسلية", callback_data="games_section")],
+            [InlineKeyboardButton("🎮 قسم الألعاب والترفيه", callback_data="games_section")],
             [InlineKeyboardButton("📢 قناة سورس تي بي (Tb Source)", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, parse_mode="Markdown", reply_markup=reply_markup)
 
 async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالجة الرسائل والحماية والأوامر والردود"""
+    """معالجة الرسائل، الحماية اللانهائية، الردود، والترحيب"""
+    
+    # 1. نظام الترحيب بالأعضاء الجدد تلقائياً عند انضمامهم للجروب
+    if update.message and update.message.new_chat_members:
+        for member in update.message.new_chat_members:
+            welcome_text = (
+                f"✨ **أهلاً بك يا [{member.first_name}](tg://user?id={member.id}) في المجموعه!**\n"
+                f"🌹 منورنا يا غالي، نتمنى لك أوقات ممتعة.\n"
+                f"📢 تابعنا في قناة السورس: {CHANNEL_USERNAME}"
+            )
+            await update.message.reply_text(welcome_text, parse_mode="Markdown")
+        return
+
     if not update.message or not update.message.text:
         return
 
@@ -138,7 +155,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     msg = update.message
 
-    # 1. حماية المجموعات من الروابط
+    # 2. نظام الحماية اللانهائية (منع الروابط وتليجرام والسبام في المجموعات لغير الإداريين)
     if chat.type in ["group", "supergroup"]:
         if "http://" in text or "https://" in text or "t.me/" in text or "www." in text:
             try:
@@ -153,24 +170,24 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
 
-    # 2. الأوامر الأساسية والأقسام
+    # 3. الأوامر الأساسية
     if text in ["اوامر", "الأوامر", "الالاوامر", "أوامر", "الاوامر"]:
         await start_command(update, context)
         return
         
     elif text in ["ألعاب", "العاب", "الالعاب"]:
-        await msg.reply_text("🎮 **قسم الألعاب:**\n• لعبة الصراحة\n• لعبة حظك اليوم\n• تخمين الأرقام\n\n*(قريباً يتم تفعيل الألعاب التفاعلية بشكل كامل)*", parse_mode="Markdown")
+        await msg.reply_text("🎮 **قسم الألعاب السريعة:**\n• اختر لعبة من الأزرار الشفافة في قائمة `/start` للاستمتاع بها!", parse_mode="Markdown")
         return
         
-    elif text in ["الرابط", "رابط الجروب", "رابط"]:
+    elif text in ["الرابط", "رابط الجروب", "رابط", "الرابط"]:
         if chat.type in ["group", "supergroup"]:
             try:
                 link = await chat.export_invite_link()
-                await msg.reply_text(f"🔗 رابط المجموعة:\n{link}")
+                await msg.reply_text(f"🔗 **رابط المجموعة الفوري:**\n{link}")
             except Exception:
-                await msg.reply_text("❌ ليس لدي صلاحية جلب الرابط (يجب أن أكون مشرفاً).")
+                await msg.reply_text("❌ عذراً، ليس لدي صلاحية جلب الرابط (يجب أن أكون مشرفاً في المجموعة).")
         else:
-            await msg.reply_text("هذا الأمر مخصص للمجموعات فقط!")
+            await msg.reply_text("هذا الأمر مخصص للاستخدام داخل المجموعات فقط للحصول على الرابط!")
         return
         
     elif text in ["المنشئين", "المنشئين الاساسيين", "المطور", "المطورين"]:
@@ -192,7 +209,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 3. إدارة الردود التلقائية
+    # 4. إدارة الردود التلقائية (اضف رد // حذف رد)
     if text.startswith("اضف رد "):
         try:
             parts = text.replace("اضف رد ", "").split("//")
@@ -216,7 +233,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("⚠️ هذه الكلمة غير مسجلة في قائمة الردود.")
         return
 
-    # 4. إدارة الأوامر المخصصة
+    # 5. إدارة الأوامر المخصصة (اضف امر // حذف امر)
     if text.startswith("اضف امر "):
         try:
             parts = text.replace("اضف امر ", "").split("//")
@@ -240,7 +257,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("⚠️ هذا الأمر غير موجود.")
         return
 
-    # 5. الفحص التلقائي للمخزن
+    # 6. الفحص التلقائي للمخزن
     if text in custom_replies:
         await msg.reply_text(custom_replies[text])
         return
@@ -258,9 +275,10 @@ def main():
 
     application.add_handler(CommandHandler(["start", "cmds"], start_command))
     application.add_handler(CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_messages))
+    # معالج الرسائل يشمل النصوص وأحداث انضمام الأعضاء للترحيب والحماية
+    application.add_handler(MessageHandler(filters.TEXT | filters.StatusUpdate.NEW_CHAT_MEMBERS & ~filters.COMMAND, handle_messages))
 
-    logger.info("🤖 تم تشغيل بوت Tb Source بكافة الأقسام والمميزات بنجاح...")
+    logger.info("🤖 تم تشغيل بوت Tb Source بكافة المميزات والحماية اللانهائية بنجاح...")
     application.run_polling()
 
 if __name__ == "__main__":
