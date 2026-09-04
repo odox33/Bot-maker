@@ -9,7 +9,7 @@ except RuntimeError:
 
 API_ID = 36216701
 API_HASH = "f95bac8547d34e32dd37ec3cdbe28558"
-BOT_TOKEN = "8704690798:AAEshhQ2o0qFuy6UwHbVGWq-a"
+BOT_TOKEN = "8704690798:AAEShhQ2oOqFuy6UwHbVGwQ-aAVlcA8FI_w"
 
 app = Client(
     "SourceTPBot",
