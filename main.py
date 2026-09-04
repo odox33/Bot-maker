@@ -1,6 +1,5 @@
 # ==============================================================================
-# سورس اندريس الأسطوري - النسخة العملاقة والمتكاملة (بدون حذف أي ميزة قديمة)
-# يحتوي على نظام الألعاب، المتجر، الحماية، ونظام "اضف/الغاء امر" التفاعلي
+# سورس اندريس الأسطوري - النسخة المعدلة والنهائية (ردود عامة + أضف أمر الذكية)
 # ==============================================================================
 
 import os
@@ -114,20 +113,11 @@ def init_massive_database():
 
 init_massive_database()
 
-def verify_developer_privileges(user_id: int, username: str) -> bool:
-    if username and username.lower() == DEV_USERNAME.lower():
-        return True
-    conn = sqlite3.connect("bot_ultimate_source_1200plus.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT user_id FROM custom_bot_admins WHERE user_id = ?", (user_id,))
-    res = cursor.fetchone()
-    conn.close()
-    return res is not None
-
 # ------------------------------------------------------------------------------
-# نظام "أضف أمر" و "الغاء أمر" الذكي والتفاعلي
+# نظام "أضف أمر" و "الغاء أمر" الذكي والتفاعلي (تم إصلاحه ليدعم الرسائل المنفصلة)
 # ------------------------------------------------------------------------------
 USER_STATE_ADD_COMMAND = {}
+USER_STATE_REMOVE_COMMAND = {}
 
 async def command_add_custom_trigger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat.type in ["group", "supergroup"]:
@@ -136,25 +126,30 @@ async def command_add_custom_trigger(update: Update, context: ContextTypes.DEFAU
     
     user_id = update.effective_user.id
     args = context.args
+    
+    # إذا كتب المستخدم "اضف امر" بدون اسم الأمر، نطلب منه اسم الأمر أولاً
     if not args:
-        await update.message.reply_text("⚠️ يرجى كتابة الأمر المراد إضافته.\nمثال: `اضف امر طرد`", parse_mode="Markdown")
+        USER_STATE_ADD_COMMAND[user_id] = {"step": "get_command_name", "chat_id": update.effective_chat.id}
+        await update.message.reply_text("📥 حسناً، ارسل الآن **اسم الأمر** الجديد الذي تريد إضافته:", parse_mode="Markdown")
         return
     
+    # إذا كتب الاسم مباشرة مع الأمر مثل "اضف امر طرد"
     command_name = args[0]
-    USER_STATE_ADD_COMMAND[user_id] = {"cmd": command_name, "chat_id": update.effective_chat.id}
-    await update.message.reply_text(f"📥 حسناً، لقد اخترت الأمر: **{command_name}**.\nالآن قم بإرسال الكلمة أو الرد أو الاختصار الذي تريد اعتماده له:", parse_mode="Markdown")
+    USER_STATE_ADD_COMMAND[user_id] = {"step": "get_command_response", "cmd": command_name, "chat_id": update.effective_chat.id}
+    await update.message.reply_text(f"📥 حسناً، لقد اخترت الأمر: **{command_name}**.\nالآن قم بإرسال الرد أو الكلمة التي تريد اعتمادها له:", parse_mode="Markdown")
 
 async def command_remove_custom_trigger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat.type in ["group", "supergroup"]:
         return
     args = context.args
+    chat_id = update.effective_chat.id
+    
     if not args:
-        await update.message.reply_text("⚠️ يرجى كتابة الأمر المراد إلغاؤه.\nمثال: `الغاء امر طرد`", parse_mode="Markdown")
+        USER_STATE_REMOVE_COMMAND[update.effective_user.id] = {"chat_id": chat_id}
+        await update.message.reply_text("🗑️ ارسل الآن **اسم الأمر** الذي تريد إلغاءه وحذفه:", parse_mode="Markdown")
         return
     
     command_name = args[0]
-    chat_id = update.effective_chat.id
-    
     conn = sqlite3.connect("bot_ultimate_source_1200plus.db")
     cursor = conn.cursor()
     cursor.execute("DELETE FROM custom_bot_replies WHERE chat_id = ? AND trigger_keyword = ?", (chat_id, command_name))
@@ -287,7 +282,7 @@ async def games_engine_callback_handler(update: Update, context: ContextTypes.DE
     conn.close()
 
 # ------------------------------------------------------------------------------
-# نظام الردود والرسائل العالمي (مع معالجة الأوامر المخصصة)
+# نظام الردود العامة التفاعلية + معالجة الأوامر المخصصة
 # ------------------------------------------------------------------------------
 async def global_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -295,27 +290,45 @@ async def global_message_handler(update: Update, context: ContextTypes.DEFAULT_T
     
     chat_id = update.effective_chat.id
     user = update.effective_user
-    text = update.message.text
+    text = update.message.text.strip()
 
-    # التحقق من حالة إضافة أمر جديد (تفاعلي)
+    # 1. معالجة إضافة أمر جديد تفاعلياً على خطوتين
     if user.id in USER_STATE_ADD_COMMAND:
-        cmd_data = USER_STATE_ADD_COMMAND[user.id]
-        target_chat = cmd_data["chat_id"]
-        command_name = cmd_data["cmd"]
-        
-        if chat_id == target_chat:
+        state_data = USER_STATE_ADD_COMMAND[user.id]
+        if state_data["chat_id"] == chat_id:
+            if state_data["step"] == "get_command_name":
+                # الخطوة الأولى: استلمنا اسم الأمر، الآن نطلب الرد
+                USER_STATE_ADD_COMMAND[user.id] = {"step": "get_command_response", "cmd": text, "chat_id": chat_id}
+                await update.message.reply_text(f"📥 ممتاز! الأمر سيكون: `{text}`.\nالآن ارسل **الكلمة أو الرد** الذي تريد أن يرسله البوت عندما يتم استخدام هذا الأمر:", parse_mode="Markdown")
+                return
+            elif state_data["step"] == "get_command_response":
+                # الخطوة الثانية: استلمنا الرد، نحفظه بقاعدة البيانات
+                command_name = state_data["cmd"]
+                conn = sqlite3.connect("bot_ultimate_source_1200plus.db")
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO custom_bot_replies (chat_id, trigger_keyword, response_text) VALUES (?, ?, ?)",
+                               (chat_id, command_name, text))
+                conn.commit()
+                conn.close()
+                
+                del USER_STATE_ADD_COMMAND[user.id]
+                await update.message.reply_text(f"✅ تم حفظ وحفظ الأمر `{command_name}` بنجاح ليرد بـ: `{text}`!", parse_mode="Markdown")
+                return
+
+    # 2. معالجة حذف أمر تفاعلياً
+    if user.id in USER_STATE_REMOVE_COMMAND:
+        if USER_STATE_REMOVE_COMMAND[user.id]["chat_id"] == chat_id:
             conn = sqlite3.connect("bot_ultimate_source_1200plus.db")
             cursor = conn.cursor()
-            cursor.execute("INSERT OR REPLACE INTO custom_bot_replies (chat_id, trigger_keyword, response_text) VALUES (?, ?, ?)",
-                           (chat_id, command_name, text))
+            cursor.execute("DELETE FROM custom_bot_replies WHERE chat_id = ? AND trigger_keyword = ?", (chat_id, text))
             conn.commit()
             conn.close()
             
-            del USER_STATE_ADD_COMMAND[user.id]
-            await update.message.reply_text(f"✅ تم بنجاح ربط الأمر `{command_name}` بالرد الجديد (`{text}`)!", parse_mode="Markdown")
+            del USER_STATE_REMOVE_COMMAND[user.id]
+            await update.message.reply_text(f"🗑️ تم حذف الأمر `{text}` بنجاح!", parse_mode="Markdown")
             return
 
-    # فحص الأوامر المخصصة المحفوظة
+    # 3. فحص الأوامر المخصصة المحفوظة مسبقاً في هذه المجموعة
     conn = sqlite3.connect("bot_ultimate_source_1200plus.db")
     cursor = conn.cursor()
     cursor.execute("SELECT response_text FROM custom_bot_replies WHERE chat_id = ? AND trigger_keyword = ?", (chat_id, text))
@@ -326,7 +339,28 @@ async def global_message_handler(update: Update, context: ContextTypes.DEFAULT_T
         conn.close()
         return
 
-    # نظام الخبرة XP والنقاط التلقائي عند التفاعل
+    # 4. ردود البوت العامة والذكية (General Bot Auto-Replies)
+    lower_text = text.lower()
+    general_replies = {
+        "السلام عليكم": "وعليكم السلام ورحمة الله وبركاته، منورنا يا غالي! 🤍",
+        "السلام": "وعليكم السلام ورحمة الله وبركاته أهلاً بك.",
+        "هلا": "هلا بيك وبحضورك الطيب يالغالي ✨",
+        "شلونك": "الحمد لله بخير وتمام التمام، أنت طمني عنك؟ 😊",
+        "شخبارك": "بخير يا عيوني، جاهز لخدمتك بأي وقت!",
+        "منور": "نور عيونك هدايا يا مبدع 🌟",
+        "بوت": "عيون البوت،امرني بشي؟ 🤖❤️",
+        "صباح الخير": "صباح النور والسرور، نهارك سعيد إن شاء الله 🌸",
+        "مساء الخير": "مساء الورد والفل والكادي 🌙",
+        "شكرا": "العفو ولو، تدلل عيوني واجبنا! 🙏",
+        "مشكور": "تستاهل كل خير يا غالي حاضرين لك دائماً ✨"
+    }
+
+    if lower_text in general_replies:
+        await update.message.reply_text(general_replies[lower_text])
+        conn.close()
+        return
+
+    # 5. نظام الخبرة XP والنقاط التلقائي عند التفاعل المستمر
     cursor.execute("SELECT balance, experience_points, user_level FROM users_registry WHERE user_id = ?", (user.id,))
     row = cursor.fetchone()
     if not row:
@@ -366,8 +400,8 @@ async def main_menu_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif data == "menu_help":
         help_text = (
             "📜 **دليل أوامر سورس اندريس الشامل:**\n\n"
-            "🔹 `اضف امر [الاسم]` - لإضافة أمر جديد وتخصيص رده.\n"
-            "🔹 `الغاء امر [الاسم]` - لحذف الأمر المخصص.\n"
+            "🔹 `اضف امر` - لإضافة أمر جديد (تفاعلي على خطوتين).\n"
+            "🔹 `الغاء امر` - لحذف أي أمر مخصص.\n"
             "🔹 `الأوامر` - لعرض كافة الأوامر المخصصة في المجموعة.\n"
             "🔹 `/games` - لفتح قاعة الألعاب الكبرى.\n"
         )
@@ -403,10 +437,10 @@ def main():
     application.add_handler(CallbackQueryHandler(games_engine_callback_handler, pattern="^game_"))
     application.add_handler(CallbackQueryHandler(main_menu_callbacks, pattern="^menu_|main_menu_"))
 
-    # معالج الرسائل
+    # معالج الرسائل العام
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, global_message_handler))
 
-    logger.info("🚀 سورس اندريس العملاق يعمل الآن بكفاءة تامة 24/7 مع نظام الأوامر المخصصة...")
+    logger.info("🚀 سورس اندريس العملاق يعمل الآن بكفاءة تامة 24/7...")
 
     # حلقة الحراسة والتشغيل التلقائي لمنع التوقف نهائياً
     while True:
